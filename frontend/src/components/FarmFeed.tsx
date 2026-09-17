@@ -105,7 +105,7 @@ export function FarmFeed({ user }: FarmFeedProps) {
   };
 
   const getInitials = (name: string) => {
-    return (name || 'Farmer').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    return (name || t('common.farmer')).split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
   const formatTimestamp = (timestamp: string) => {
@@ -115,9 +115,9 @@ export function FarmFeed({ user }: FarmFeedProps) {
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMins / 60);
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffMins < 1) return t('common.justNow');
+    if (diffMins < 60) return `${diffMins}${t('common.minAgo')}`;
+    if (diffHours < 24) return `${diffHours}${t('common.hourAgo')}`;
     return date.toLocaleDateString();
   };
 
@@ -151,7 +151,7 @@ export function FarmFeed({ user }: FarmFeedProps) {
                     setImagePreview(null);
                     setSelectedFile(null);
                     if (fileInputRef.current) fileInputRef.current.value = '';
-                  }}>Remove</Button>
+                  }}>{t('common.remove')}</Button>
                 </div>
               )}
               {postError && (

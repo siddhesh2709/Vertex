@@ -54,7 +54,7 @@ function displayDate(value: string) {
 
 function dueLabel(days: number) {
   if (days < 0) return `${Math.abs(days)} day${days === -1 ? '' : 's'} overdue`;
-  if (days === 0) return 'Due today';
+  if (days === 0) return t('dash.dueToday');
   return `Due in ${days} day${days === 1 ? '' : 's'}`;
 }
 
@@ -81,7 +81,7 @@ export function Dashboard({ user }: DashboardProps) {
     }).then(response => {
       if (active) setSummary(response.data);
     }).catch(err => {
-      if (active) setError(err.response?.data?.error || 'Could not load your dashboard. Please try again.');
+      if (active) setError(err.response?.data?.error || t('dash.loadFail'));
     }).finally(() => {
       if (active) setLoading(false);
     });
@@ -97,7 +97,7 @@ export function Dashboard({ user }: DashboardProps) {
     setWeather(null);
 
     if (!navigator.geolocation) {
-      setWeatherError('Location is not supported by this browser.');
+      setWeatherError(t('dash.noGeo'));
       setLoadingWeather(false);
       return () => { active = false; controller.abort(); };
     }
@@ -114,15 +114,15 @@ export function Dashboard({ user }: DashboardProps) {
         if (!Number.isFinite(current?.main?.temp)) throw new Error('Invalid weather response');
         if (active) setWeather(current);
       } catch {
-        if (active) setWeatherError('Weather is unavailable. Please try again later.');
+        if (active) setWeatherError(t('dash.weatherUnavailable'));
       } finally {
         if (active) setLoadingWeather(false);
       }
     }, err => {
       if (!active) return;
       setWeatherError(err.code === 1
-        ? 'Allow location access in your browser to see local weather.'
-        : 'Could not determine your location. Please try again later.');
+        ? t('dash.allowLocation')
+        : t('dash.noLocationFix'));
       setLoadingWeather(false);
     }, { timeout: 10000, maximumAge: 300000 });
 
@@ -130,7 +130,7 @@ export function Dashboard({ user }: DashboardProps) {
   }, [refresh, user?.firebaseUid]);
 
   const userName = summary?.profile?.name || user?.name || user?.email?.split('@')[0] || 'Farmer';
-  const location = summary?.profile?.location || user?.location || 'Location not set';
+  const location = summary?.profile?.location || user?.location || t('dash.noLocation');
   const stats = summary?.stats;
   const cards = [
     { label: t('dash.plans'), value: stats?.cultivationPlans, note: t('dash.plansNote'), Icon: Leaf },
@@ -154,7 +154,7 @@ export function Dashboard({ user }: DashboardProps) {
       <Card>
         <CardContent className="pt-6">
           {loadingWeather ? (
-            <p className="flex items-center gap-2 text-sm text-gray-600" role="status"><Loader2 className="h-4 w-4 animate-spin" />Loading local weather...</p>
+            <p className="flex items-center gap-2 text-sm text-gray-600" role="status"><Loader2 className="h-4 w-4 animate-spin" />{t('dash.weatherLoadingLocal')}</p>
           ) : weather ? (
             <div className="flex flex-wrap items-center gap-6">
               <Cloud className="h-8 w-8 text-blue-600" />
@@ -168,7 +168,7 @@ export function Dashboard({ user }: DashboardProps) {
       </Card>
 
       {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">{error}{summary && ' The figures below are from the last successful refresh.'}</div>}
-      {loading && !summary && <p role="status" className="flex items-center gap-2 text-gray-600"><Loader2 className="h-4 w-4 animate-spin" />Loading your cultivation records...</p>}
+      {loading && !summary && <p role="status" className="flex items-center gap-2 text-gray-600"><Loader2 className="h-4 w-4 animate-spin" />{t('dash.loadingRecords')}</p>}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map(({ label, value, note, Icon }) => (
@@ -189,7 +189,7 @@ export function Dashboard({ user }: DashboardProps) {
             <CardContent>
               <div className="flex items-center gap-4"><progress aria-label="Overall task completion" className="w-full h-3" max={100} value={stats!.progressPercent} style={{ accentColor: '#16a34a' }} /><span className="font-semibold">{stats!.progressPercent}%</span></div>
               {stats!.overdueTasks > 0 && <p className="mt-3 text-sm text-amber-800">{stats!.overdueTasks} pending task{stats!.overdueTasks === 1 ? ' is' : 's are'} overdue.</p>}
-              {stats!.cultivationPlans === 0 && <p className="mt-3 text-sm text-gray-600">Create your first plan in Crop Roadmap to start tracking your work.</p>}
+              {stats!.cultivationPlans === 0 && <p className="mt-3 text-sm text-gray-600">{t('dash.createFirst')}</p>}
             </CardContent>
           </Card>
 
@@ -197,7 +197,7 @@ export function Dashboard({ user }: DashboardProps) {
             <Card>
               <CardHeader><CardTitle>{t('dash.tasksToDo')}</CardTitle><CardDescription>{t('dash.tasksToDoSub')}</CardDescription></CardHeader>
               <CardContent className="space-y-3">
-                {summary.nextTasks.length === 0 ? <p className="text-sm text-gray-600">No pending tasks.</p> : summary.nextTasks.map(task => (
+                {summary.nextTasks.length === 0 ? <p className="text-sm text-gray-600">{t('dash.noPending')}</p> : summary.nextTasks.map(task => (
                   <div key={`${task.cultivationId}-${task.id}`} className="rounded-lg border p-4">
                     <p className="font-semibold text-gray-900">{task.title}</p>
                     <p className="text-sm text-green-700 mt-1">{task.cropName}</p>
@@ -211,7 +211,7 @@ export function Dashboard({ user }: DashboardProps) {
             <Card>
               <CardHeader><CardTitle>{t('dash.recentPlans')}</CardTitle><CardDescription>{t('dash.recentPlansSub')}</CardDescription></CardHeader>
               <CardContent className="space-y-3">
-                {summary.recentPlans.length === 0 ? <p className="text-sm text-gray-600">No cultivation plans yet.</p> : summary.recentPlans.map(plan => (
+                {summary.recentPlans.length === 0 ? <p className="text-sm text-gray-600">{t('dash.noPlans')}</p> : summary.recentPlans.map(plan => (
                   <div key={plan.id} className="rounded-lg border p-4">
                     <div className="flex items-center justify-between gap-3"><p className="font-semibold text-gray-900">{plan.cropName}</p><span className="text-sm text-green-700">{plan.progressPercent}%</span></div>
                     <p className="mt-1 text-sm text-gray-600">{plan.areaAcres} acres · Started {displayDate(plan.startDate)}</p>

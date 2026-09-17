@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { MessageCircle, X, Send } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { useTranslation } from '../i18n';
 
 interface Message {
   id: number;
@@ -10,9 +11,10 @@ interface Message {
 }
 
 export function Chatbot() {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { id: 1, text: 'Hello! I am the Vertex assistant. How can I help you with your farm today?', sender: 'bot' }
+    { id: 1, text: t('chat.greeting'), sender: 'bot' }
   ]);
   const [inputText, setInputText] = useState('');
 
@@ -33,7 +35,7 @@ export function Chatbot() {
     setTimeout(() => {
       const botResponse: Message = {
         id: Date.now() + 1,
-        text: 'I am just a static mock chatbot for now! In the future, I will be connected to an AI service to help you out.',
+        text: t('chat.mockReply'),
         sender: 'bot',
       };
       setMessages(prev => [...prev, botResponse]);
@@ -49,7 +51,7 @@ export function Chatbot() {
           <div className="bg-green-600 p-4 text-white flex justify-between items-center">
             <div className="flex items-center gap-2">
               <MessageCircle className="w-5 h-5" />
-              <span className="font-medium">Vertex Assistant</span>
+              <span className="font-medium">{t('chat.title')}</span>
             </div>
             <button
               onClick={() => setIsOpen(false)}
@@ -80,7 +82,7 @@ export function Chatbot() {
             <Input
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder="Ask a question..."
+              placeholder={t('chat.placeholder')}
               className="flex-1 border-gray-300 focus-visible:ring-green-500"
             />
             <Button
@@ -100,7 +102,7 @@ export function Chatbot() {
         {/* Floating Label */}
         {!isOpen && (
           <div className="bg-white text-green-700 text-sm font-semibold px-3 py-1.5 rounded-full shadow-md border border-green-100 whitespace-nowrap">
-            Farmer's Help
+            {t('chat.label')}
           </div>
         )}
         

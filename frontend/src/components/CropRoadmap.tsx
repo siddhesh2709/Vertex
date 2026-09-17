@@ -76,7 +76,7 @@ export function CropRoadmap({ prefill }: CropRoadmapProps) {
       console.error('Update task error:', error);
       alert(
         error.response?.data?.error ||
-        'Could not confirm the update. Refresh to check before retrying.'
+        t('roadmap.updateFail')
       );
     } finally {
       taskUpdateInFlight.current = false;
@@ -114,7 +114,7 @@ export function CropRoadmap({ prefill }: CropRoadmapProps) {
 
         setRoadmap({
           ...savedPlan,
-          cropName: savedPlan.crop?.name || 'Previously selected crop',
+          cropName: savedPlan.crop?.name || t('roadmap.prevCrop'),
           landArea: savedPlan.areaAcres,
           totalWeeks: Math.max(1, ...tasks.map((task: any) => task.week)),
           tasks
@@ -124,7 +124,7 @@ export function CropRoadmap({ prefill }: CropRoadmapProps) {
           console.error('Load roadmap error:', error);
           alert(
             error.response?.data?.error ||
-            'Could not load your saved roadmap. Please refresh to retry.'
+            t('roadmap.loadFail')
           );
         }
       } finally {
@@ -161,7 +161,7 @@ export function CropRoadmap({ prefill }: CropRoadmapProps) {
 
       if (!selectedCrop) {
         throw new Error(
-          'This crop is not available yet. Select Rice, Wheat, Tomato, or Cotton.'
+          t('roadmap.cropUnavailable')
         );
       }
 
@@ -204,7 +204,7 @@ export function CropRoadmap({ prefill }: CropRoadmapProps) {
       const message =
         error.response?.data?.error ||
         error.message ||
-        'Could not save the roadmap. Please try again.';
+        t('roadmap.saveFail');
 
       alert(message);
     } finally {
@@ -216,7 +216,7 @@ export function CropRoadmap({ prefill }: CropRoadmapProps) {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-green-900">{t('roadmap.title')} 📆</h1>
-        <p className="text-green-700 mt-1">Get a week-by-week plan for your crop cultivation</p>
+        <p className="text-green-700 mt-1">{t('roadmap.subtitle')}</p>
       </div>
 
       <Card>
@@ -359,10 +359,10 @@ export function CropRoadmap({ prefill }: CropRoadmapProps) {
                             <Circle className="h-5 w-5 text-gray-400" />
                           )}
                           {updatingTask === task._id
-                            ? 'Saving...'
+                            ? t('common.saving')
                             : task.status === 'completed'
-                              ? 'Completed'
-                              : 'Mark done'}
+                              ? t('roadmap.done')
+                              : t('roadmap.markDone')}
                         </button>
                       </div>
                       <p className="text-gray-700 text-sm mb-3">{task.description}</p>
@@ -387,7 +387,7 @@ export function CropRoadmap({ prefill }: CropRoadmapProps) {
           <Card className="bg-amber-50 border-amber-200">
             <CardContent className="pt-6">
               <p className="text-sm text-amber-900">
-                <strong>Planning note:</strong> This schedule uses a crop-specific template.
+                <strong>{t('roadmap.planningNote')}</strong> This schedule uses a crop-specific template.
                 Adjust activities to local conditions and mark tasks complete as you finish them.
               </p>
             </CardContent>

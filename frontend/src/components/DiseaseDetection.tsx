@@ -111,7 +111,7 @@ export function DiseaseDetection() {
             <ShieldCheck className="h-5 w-5 text-green-700 flex-shrink-0" />
             <div className="text-xs leading-tight">
               <div className="font-semibold">
-                {(modelInfo.metrics.testAccuracy * 100).toFixed(1)}% test accuracy
+                {(modelInfo.metrics.testAccuracy * 100).toFixed(1)}% {t('disease.testAccuracy')}
               </div>
               <div className="text-green-700">
                 {modelInfo.metrics.architecture} · {modelInfo.classes.length} classes
@@ -283,7 +283,7 @@ export function DiseaseDetection() {
 
               {alternatives.length > 0 && (
                 <div className="pt-4 border-t">
-                  <p className="text-xs font-semibold text-gray-600 mb-2">Other possibilities considered</p>
+                  <p className="text-xs font-semibold text-gray-600 mb-2">{t('disease.otherPossibilities')}</p>
                   <div className="flex flex-wrap gap-2">
                     {alternatives.map((alt: any, i: number) => (
                       <span key={i} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">
