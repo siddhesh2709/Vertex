@@ -59,7 +59,9 @@ export function DiseaseDetection() {
       const response = await api.post('/disease/detect', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      if (response.data.mismatch) {
+      if (response.data.notALeaf) {
+        setNotice(t('disease.notALeaf'));
+      } else if (response.data.mismatch) {
         const guess = response.data.bestGuess;
         const hint = guess
           ? ` ${t('disease.bestGuess')} ${guess.name} (${guess.crop}, ${Math.round(guess.confidence * 100)}%)`
@@ -222,13 +224,15 @@ export function DiseaseDetection() {
             <CardContent className="pt-6 space-y-6">
               <div>
                 <div className="flex items-center justify-between mb-2 gap-2">
-                  <h3 className="text-xl font-bold text-gray-900">{detection.name}</h3>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    {detection.healthy ? detection.name : `${t('disease.likely')} ${detection.name}`}
+                  </h3>
                   <span
                     className={`px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap ${
                       detection.healthy ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'
                     }`}
                   >
-                    {Math.round(detection.confidence * 100)}% {t('disease.confidence')}
+                    {Math.round(detection.confidence * 100)}% {t('disease.modelConfidence')}
                   </span>
                 </div>
                 <p className="text-gray-700">{detection.description}</p>
@@ -285,6 +289,9 @@ export function DiseaseDetection() {
                 <CardContent className="pt-4 pb-4">
                   <p className="text-xs text-amber-900">
                     <strong>{t('disease.note')}</strong> {t('disease.noteText')}
+                  </p>
+                  <p className="text-xs text-amber-900 mt-2">
+                    {t('disease.leafOnlyNote')}
                   </p>
                 </CardContent>
               </Card>

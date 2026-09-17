@@ -22,7 +22,19 @@ const detectDisease = async (req, res) => {
             return res.status(503).json({ error: 'Disease model is not loaded on the server.' });
         }
 
-        const { top, ranked } = await diseaseModel.predict(req.file.buffer);
+        const { top, ranked, energy, energyThreshold, looksLikeLeaf } = await diseaseModel.predict(req.file.buffer);
+
+        // The classifier has no "not a leaf" class, so softmax stays confident on
+        // anything at all. Reject low-energy input before reporting a diagnosis.
+        if (looksLikeLeaf === false) {
+            return res.json({
+                notALeaf: true,
+                cropType,
+                energy,
+                energyThreshold,
+                message: 'This does not look like a leaf photo the model can read.'
+            });
+        }
 
         // Keep only predictions for the crop the farmer selected, so a tomato
         // model class can't be returned for a potato photo.
@@ -60,8 +72,11 @@ const detectDisease = async (req, res) => {
                 treatment: info.treatment,
                 prevention: info.prevention
             },
+            // Alternatives must stay within the selected crop - offering a maize
+            // disease as a runner-up for a tomato photo is just noise.
             alternatives: ranked
-                .filter((r) => r.className !== best.className)
+                .filter((r) => r.className !== best.className
+                    && DISEASE_INFO[r.className]?.crop === cropType)
                 .slice(0, 2)
                 .map((r) => ({
                     name: DISEASE_INFO[r.className]?.label || r.className,
@@ -71,7 +86,10 @@ const detectDisease = async (req, res) => {
             model: {
                 architecture: meta.metrics.architecture,
                 testAccuracy: meta.metrics.testAccuracy,
-                classes: meta.classes.length
+                classes: meta.classes.length,
+                energy,
+                // The model only ever saw single leaves on plain backgrounds.
+                trainedOn: 'single-leaf images (PlantVillage)'
             }
         });
     } catch (error) {

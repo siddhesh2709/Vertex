@@ -38,13 +38,28 @@ def predict(image_bytes):
     image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     tensor = preprocess(image).unsqueeze(0)
     with torch.no_grad():
-        probs = torch.softmax(model(tensor)[0], dim=0)
+        logits = model(tensor)[0]
+        probs = torch.softmax(logits, dim=0)
+
+    # Softmax always sums to 1 over the 19 leaf classes, so it stays high even
+    # for input that is not a leaf at all (random noise scores 99%). The energy
+    # score (logsumexp of the logits) does separate them: real leaves average
+    # ~17 and sit above ~7.6 at the 1st percentile, while non-leaf input
+    # measured between 3.1 and 6.7. See ENERGY_THRESHOLD in model_meta.json.
+    energy = float(torch.logsumexp(logits, dim=0))
+
     ranked = sorted(
         ({"className": CLASSES[i], "probability": float(p)} for i, p in enumerate(probs)),
         key=lambda r: r["probability"],
         reverse=True,
     )
-    return {"top": ranked[0], "ranked": ranked[:5]}
+    return {
+        "top": ranked[0],
+        "ranked": ranked[:5],
+        "energy": round(energy, 3),
+        "energyThreshold": meta.get("energyThreshold", 7.0),
+        "looksLikeLeaf": energy >= meta.get("energyThreshold", 7.0),
+    }
 
 
 class Handler(BaseHTTPRequestHandler):

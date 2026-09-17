@@ -137,5 +137,18 @@
         "accuracy": 1.0
       }
     }
+  },
+  "energyThreshold": 7.0,
+  "energyCalibration": {
+    "note": "logsumexp of logits; separates leaf images from non-leaf input where softmax cannot",
+    "inDistributionMean": 17.23,
+    "inDistributionP1": 7.6,
+    "inDistributionMin": 6.44,
+    "observedOodRange": [
+      3.13,
+      6.74
+    ],
+    "sampleSize": 640,
+    "caveat": "Validated against synthetic non-leaf input (solid colours, noise, crude shapes). Real photos of fruit or whole plants sit closer to the training distribution and may still pass."
   }
 }
