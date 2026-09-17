@@ -88,7 +88,7 @@ export default function App() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-green-600 text-white rounded-full mb-4 animate-pulse">
             <Sprout className="w-8 h-8" />
           </div>
-          <p className="text-green-700">Loading Vertex...</p>
+          <p className="text-green-700">Loading AgroLyft...</p>
         </div>
       </div>
     );
@@ -117,7 +117,7 @@ export default function App() {
                 <Sprout className="w-6 h-6" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-green-900">Vertex</h1>
+                <h1 className="text-xl font-bold text-green-900">AgroLyft</h1>
                 <p className="text-xs text-green-700 hidden sm:block">Smart Farming, Elevated Growth</p>
               </div>
             </div>
