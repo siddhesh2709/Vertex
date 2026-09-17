@@ -1,0 +1,154 @@
+{
+  "classes": [
+    "Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot",
+    "Corn_(maize)___Common_rust_",
+    "Corn_(maize)___Northern_Leaf_Blight",
+    "Corn_(maize)___healthy",
+    "Pepper,_bell___Bacterial_spot",
+    "Pepper,_bell___healthy",
+    "Potato___Early_blight",
+    "Potato___Late_blight",
+    "Potato___healthy",
+    "Tomato___Bacterial_spot",
+    "Tomato___Early_blight",
+    "Tomato___Late_blight",
+    "Tomato___Leaf_Mold",
+    "Tomato___Septoria_leaf_spot",
+    "Tomato___Spider_mites Two-spotted_spider_mite",
+    "Tomato___Target_Spot",
+    "Tomato___Tomato_Yellow_Leaf_Curl_Virus",
+    "Tomato___Tomato_mosaic_virus",
+    "Tomato___healthy"
+  ],
+  "imgSize": 160,
+  "mean": [
+    0.485,
+    0.456,
+    0.406
+  ],
+  "std": [
+    0.229,
+    0.224,
+    0.225
+  ],
+  "metrics": {
+    "testAccuracy": 0.9944,
+    "valAccuracy": 0.9932,
+    "trainSize": 21311,
+    "valSize": 2663,
+    "testSize": 2665,
+    "epochs": 5,
+    "architecture": "mobilenet_v3_small",
+    "dataset": "PlantVillage (Tomato, Potato, Maize, Pepper subset)",
+    "perClass": {
+      "Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot": {
+        "correct": 44,
+        "total": 48,
+        "accuracy": 0.9167
+      },
+      "Corn_(maize)___Common_rust_": {
+        "correct": 110,
+        "total": 110,
+        "accuracy": 1.0
+      },
+      "Corn_(maize)___Northern_Leaf_Blight": {
+        "correct": 109,
+        "total": 109,
+        "accuracy": 1.0
+      },
+      "Corn_(maize)___healthy": {
+        "correct": 119,
+        "total": 119,
+        "accuracy": 1.0
+      },
+      "Pepper,_bell___Bacterial_spot": {
+        "correct": 104,
+        "total": 104,
+        "accuracy": 1.0
+      },
+      "Pepper,_bell___healthy": {
+        "correct": 164,
+        "total": 164,
+        "accuracy": 1.0
+      },
+      "Potato___Early_blight": {
+        "correct": 90,
+        "total": 90,
+        "accuracy": 1.0
+      },
+      "Potato___Late_blight": {
+        "correct": 109,
+        "total": 110,
+        "accuracy": 0.9909
+      },
+      "Potato___healthy": {
+        "correct": 13,
+        "total": 13,
+        "accuracy": 1.0
+      },
+      "Tomato___Bacterial_spot": {
+        "correct": 216,
+        "total": 217,
+        "accuracy": 0.9954
+      },
+      "Tomato___Early_blight": {
+        "correct": 105,
+        "total": 111,
+        "accuracy": 0.9459
+      },
+      "Tomato___Late_blight": {
+        "correct": 182,
+        "total": 182,
+        "accuracy": 1.0
+      },
+      "Tomato___Leaf_Mold": {
+        "correct": 95,
+        "total": 95,
+        "accuracy": 1.0
+      },
+      "Tomato___Septoria_leaf_spot": {
+        "correct": 161,
+        "total": 161,
+        "accuracy": 1.0
+      },
+      "Tomato___Spider_mites Two-spotted_spider_mite": {
+        "correct": 175,
+        "total": 175,
+        "accuracy": 1.0
+      },
+      "Tomato___Target_Spot": {
+        "correct": 123,
+        "total": 125,
+        "accuracy": 0.984
+      },
+      "Tomato___Tomato_Yellow_Leaf_Curl_Virus": {
+        "correct": 531,
+        "total": 532,
+        "accuracy": 0.9981
+      },
+      "Tomato___Tomato_mosaic_virus": {
+        "correct": 37,
+        "total": 37,
+        "accuracy": 1.0
+      },
+      "Tomato___healthy": {
+        "correct": 163,
+        "total": 163,
+        "accuracy": 1.0
+      }
+    }
+  },
+  "energyThreshold": 7.0,
+  "energyCalibration": {
+    "note": "logsumexp of logits; separates leaf images from non-leaf input where softmax cannot",
+    "inDistributionMean": 17.23,
+    "inDistributionP1": 7.6,
+    "inDistributionMin": 6.44,
+    "observedOodRange": [
+      3.13,
+      6.74
+    ],
+    "sampleSize": 640,
+    "caveat": "Validated against synthetic non-leaf input (solid colours, noise, crude shapes). Real photos of fruit or whole plants sit closer to the training distribution and may still pass."
+  }
+}

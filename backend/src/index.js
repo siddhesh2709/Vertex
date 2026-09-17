@@ -7,6 +7,7 @@ const path = require('path');
 
 const { connectPostgres, connectMongo, sequelize } = require('./config/db');
 const { connectRedis } = require('./config/redis');
+const diseaseModel = require('./services/diseaseModel');
 
 // Routes
 const userRoutes = require('./routes/userRoutes');
@@ -34,6 +35,8 @@ app.use('/api/social', postRoutes);
 app.use('/api/weather', weatherRoutes);
 app.use('/api/crops', cropRoutes);
 app.use('/api/cultivations', require('./routes/cultivationRoutes'));
+app.use('/api/disease', require('./routes/diseaseRoutes'));
+app.use('/api/market', require('./routes/marketRoutes'));
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date() });
@@ -51,8 +54,12 @@ const startServer = async () => {
     console.log('✅ PostgreSQL models synced.');
 
     app.use('/api/dashboard', require('./routes/dashboardRoutes'));
+
+    // Non-fatal: the rest of the API still serves if the model worker is down.
+    await diseaseModel.load();
+
     app.listen(PORT, () => {
-      console.log(`🚀 HarvestHub Backend running on port ${PORT}`);
+      console.log(`🚀 Vertex Backend running on port ${PORT}`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);

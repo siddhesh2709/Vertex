@@ -3,6 +3,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/
 import { Button } from './ui/button';
 import { Leaf, Calendar, CheckCircle2, Circle, MapPin, RefreshCw, Loader2, Cloud, Droplets, Wind } from 'lucide-react';
 import api from '../services/api';
+import { useTranslation } from '../i18n';
 
 interface DashboardProps {
   user: any;
@@ -59,6 +60,7 @@ function dueLabel(days: number) {
 
 export function Dashboard({ user }: DashboardProps) {
   const [summary, setSummary] = useState<Summary | null>(null);
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [refresh, setRefresh] = useState(0);
@@ -131,17 +133,17 @@ export function Dashboard({ user }: DashboardProps) {
   const location = summary?.profile?.location || user?.location || 'Location not set';
   const stats = summary?.stats;
   const cards = [
-    { label: 'Cultivation Plans', value: stats?.cultivationPlans, note: 'Saved plans, excluding cancelled plans', Icon: Leaf },
-    { label: 'Pending Tasks', value: stats?.pendingTasks, note: 'Unfinished tasks across your plans', Icon: Circle },
-    { label: 'Completed Tasks', value: stats?.completedTasks, note: 'Tasks you have marked complete', Icon: CheckCircle2 },
-    { label: 'Due Next 7 Days', value: stats?.dueNext7Days, note: 'Pending tasks due today through the next 6 days', Icon: Calendar }
+    { label: t('dash.plans'), value: stats?.cultivationPlans, note: t('dash.plansNote'), Icon: Leaf },
+    { label: t('dash.pendingTasks'), value: stats?.pendingTasks, note: t('dash.pendingNote'), Icon: Circle },
+    { label: t('dash.completedTasks'), value: stats?.completedTasks, note: t('dash.completedNote'), Icon: CheckCircle2 },
+    { label: t('dash.due7'), value: stats?.dueNext7Days, note: t('dash.due7Note'), Icon: Calendar }
   ];
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-green-900">Welcome back, {userName}!</h1>
+          <h1 className="text-3xl font-bold text-green-900">{t('dash.welcome')}, {userName}!</h1>
           <p className="text-green-700 mt-1 flex items-center gap-2"><MapPin className="h-4 w-4" />{location}</p>
         </div>
         <Button variant="outline" onClick={() => setRefresh(value => value + 1)} disabled={loading || loadingWeather}>
@@ -183,7 +185,7 @@ export function Dashboard({ user }: DashboardProps) {
       {summary && (
         <>
           <Card>
-            <CardHeader><CardTitle>Overall Task Progress</CardTitle><CardDescription>{stats!.completedTasks} of {stats!.totalTasks} tasks completed across your saved plans</CardDescription></CardHeader>
+            <CardHeader><CardTitle>{t('dash.progress')}</CardTitle><CardDescription>{stats!.completedTasks} of {stats!.totalTasks} tasks completed across your saved plans</CardDescription></CardHeader>
             <CardContent>
               <div className="flex items-center gap-4"><progress aria-label="Overall task completion" className="w-full h-3" max={100} value={stats!.progressPercent} style={{ accentColor: '#16a34a' }} /><span className="font-semibold">{stats!.progressPercent}%</span></div>
               {stats!.overdueTasks > 0 && <p className="mt-3 text-sm text-amber-800">{stats!.overdueTasks} pending task{stats!.overdueTasks === 1 ? ' is' : 's are'} overdue.</p>}
@@ -193,7 +195,7 @@ export function Dashboard({ user }: DashboardProps) {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
-              <CardHeader><CardTitle>Tasks to Do</CardTitle><CardDescription>Up to 8 pending tasks, earliest due first. Includes overdue tasks.</CardDescription></CardHeader>
+              <CardHeader><CardTitle>{t('dash.tasksToDo')}</CardTitle><CardDescription>{t('dash.tasksToDoSub')}</CardDescription></CardHeader>
               <CardContent className="space-y-3">
                 {summary.nextTasks.length === 0 ? <p className="text-sm text-gray-600">No pending tasks.</p> : summary.nextTasks.map(task => (
                   <div key={`${task.cultivationId}-${task.id}`} className="rounded-lg border p-4">
@@ -207,7 +209,7 @@ export function Dashboard({ user }: DashboardProps) {
             </Card>
 
             <Card>
-              <CardHeader><CardTitle>Recent Cultivation Plans</CardTitle><CardDescription>Your 6 most recently created plans</CardDescription></CardHeader>
+              <CardHeader><CardTitle>{t('dash.recentPlans')}</CardTitle><CardDescription>{t('dash.recentPlansSub')}</CardDescription></CardHeader>
               <CardContent className="space-y-3">
                 {summary.recentPlans.length === 0 ? <p className="text-sm text-gray-600">No cultivation plans yet.</p> : summary.recentPlans.map(plan => (
                   <div key={plan.id} className="rounded-lg border p-4">

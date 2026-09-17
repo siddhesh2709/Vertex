@@ -1,65 +1,86 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Loader2, Upload, Camera, AlertTriangle, CheckCircle, Leaf } from 'lucide-react';
-import { projectId } from '../utils/supabase/info';
+import { Loader2, Upload, Camera, AlertTriangle, CheckCircle, Leaf, AlertCircle, ShieldCheck } from 'lucide-react';
+import api from '../services/api';
+import { useTranslation } from '../i18n';
 
-interface DiseaseDetectionProps {
-  accessToken: string;
-}
-
-export function DiseaseDetection({ accessToken }: DiseaseDetectionProps) {
+export function DiseaseDetection() {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [detection, setDetection] = useState<any>(null);
+  const [alternatives, setAlternatives] = useState<any[]>([]);
+  const [modelInfo, setModelInfo] = useState<any>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [cropType, setCropType] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    api.get('/disease/model-info')
+      .then((res) => setModelInfo(res.data))
+      .catch(() => setModelInfo(null));
+  }, []);
+
+  const supportedCrops: string[] = modelInfo?.supportedCrops || ['Tomato', 'Potato', 'Maize', 'Pepper'];
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+    setSelectedFile(file);
+    setDetection(null);
+    setNotice(null);
+    setError(null);
+    const reader = new FileReader();
+    reader.onloadend = () => setImagePreview(reader.result as string);
+    reader.readAsDataURL(file);
   };
 
   const handleAnalyze = async () => {
-    if (!imagePreview || !cropType) {
-      alert('Please select a crop type and upload an image');
+    if (!selectedFile || !cropType) {
+      setError(t('disease.needBoth'));
       return;
     }
 
     setLoading(true);
+    setError(null);
+    setNotice(null);
+    setDetection(null);
+
+    const formData = new FormData();
+    formData.append('cropType', cropType);
+    formData.append('image', selectedFile);
 
     try {
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-e63c4de1/detect-disease`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`
-          },
-          body: JSON.stringify({
-            imageBase64: imagePreview,
-            cropType
-          })
-        }
-      );
-
-      const data = await response.json();
-      if (response.ok) {
-        setDetection(data.detection);
+      const response = await api.post('/disease/detect', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (response.data.notALeaf) {
+        setNotice(t('disease.notALeaf'));
+      } else if (response.data.mismatch) {
+        const guess = response.data.bestGuess;
+        const hint = guess
+          ? ` ${t('disease.bestGuess')} ${guess.name} (${guess.crop}, ${Math.round(guess.confidence * 100)}%)`
+          : '';
+        setNotice(t('disease.mismatch').replace('{crop}', cropType) + hint);
       } else {
-        console.error('Detection error:', data.error);
+        setDetection(response.data.detection);
+        setAlternatives(response.data.alternatives || []);
       }
-    } catch (error) {
-      console.error('Failed to detect disease:', error);
+    } catch (err: any) {
+      console.error('Failed to analyze image:', err);
+      const data = err?.response?.data;
+      if (data?.error === 'unsupported_crop') {
+        setNotice(`${t('disease.unsupported')} ${data.supportedCrops.join(', ')}`);
+      } else if (err?.response?.status === 503) {
+        setNotice(t('disease.unavailable'));
+      } else {
+        setError(t('disease.error'));
+      }
     } finally {
       setLoading(false);
     }
@@ -67,78 +88,79 @@ export function DiseaseDetection({ accessToken }: DiseaseDetectionProps) {
 
   const resetForm = () => {
     setImagePreview(null);
+    setSelectedFile(null);
     setDetection(null);
+    setAlternatives([]);
     setCropType('');
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    setError(null);
+    setNotice(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-green-900">AI Disease Detection 🔬</h1>
-        <p className="text-green-700 mt-1">Upload a photo of your crop for instant disease diagnosis</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-bold text-green-900">{t('disease.title')} 🔬</h1>
+          <p className="text-green-700 mt-1">{t('disease.subtitle')}</p>
+        </div>
+        {modelInfo?.metrics && (
+          <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-900 rounded-lg px-3 py-2">
+            <ShieldCheck className="h-5 w-5 text-green-700 flex-shrink-0" />
+            <div className="text-xs leading-tight">
+              <div className="font-semibold">
+                {(modelInfo.metrics.testAccuracy * 100).toFixed(1)}% test accuracy
+              </div>
+              <div className="text-green-700">
+                {modelInfo.metrics.architecture} · {modelInfo.classes.length} classes
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Upload Crop Image</CardTitle>
-            <CardDescription>Take a clear photo of the affected leaf or plant</CardDescription>
+            <CardTitle>{t('disease.uploadTitle')}</CardTitle>
+            <CardDescription>{t('disease.uploadSub')}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="cropType">Crop Type</Label>
+              <Label htmlFor="cropType">{t('disease.cropType')}</Label>
               <Select value={cropType} onValueChange={setCropType}>
                 <SelectTrigger id="cropType">
-                  <SelectValue placeholder="Select crop type" />
+                  <SelectValue placeholder={t('disease.selectCrop')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Rice">Rice</SelectItem>
-                  <SelectItem value="Wheat">Wheat</SelectItem>
-                  <SelectItem value="Tomato">Tomato</SelectItem>
-                  <SelectItem value="Potato">Potato</SelectItem>
-                  <SelectItem value="Cotton">Cotton</SelectItem>
-                  <SelectItem value="Maize">Maize</SelectItem>
-                  <SelectItem value="Chili">Chili</SelectItem>
+                  {supportedCrops.map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label>Upload Image</Label>
+              <Label>{t('disease.uploadImage')}</Label>
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-green-500 transition-colors">
                 {imagePreview ? (
                   <div className="space-y-4">
-                    <img
-                      src={imagePreview}
-                      alt="Preview"
-                      className="max-h-64 mx-auto rounded-lg"
-                    />
-                    <Button
-                      variant="outline"
-                      onClick={() => fileInputRef.current?.click()}
-                      type="button"
-                    >
+                    <img src={imagePreview} alt="Preview" className="max-h-64 mx-auto rounded-lg" />
+                    <Button variant="outline" onClick={() => fileInputRef.current?.click()} type="button">
                       <Upload className="mr-2 h-4 w-4" />
-                      Change Image
+                      {t('disease.changeImage')}
                     </Button>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     <Camera className="h-12 w-12 mx-auto text-gray-400" />
                     <div>
-                      <p className="text-gray-600 mb-2">Click to upload or drag and drop</p>
-                      <p className="text-sm text-gray-500">PNG, JPG up to 10MB</p>
+                      <p className="text-gray-600 mb-2">{t('disease.dropHint')}</p>
+                      <p className="text-sm text-gray-500">{t('disease.fileHint')}</p>
                     </div>
-                    <Button
-                      variant="outline"
-                      onClick={() => fileInputRef.current?.click()}
-                      type="button"
-                    >
+                    <Button variant="outline" onClick={() => fileInputRef.current?.click()} type="button">
                       <Upload className="mr-2 h-4 w-4" />
-                      Select Image
+                      {t('disease.selectImage')}
                     </Button>
                   </div>
                 )}
@@ -153,87 +175,123 @@ export function DiseaseDetection({ accessToken }: DiseaseDetectionProps) {
             </div>
 
             <div className="flex gap-2">
-              <Button
-                onClick={handleAnalyze}
-                disabled={loading || !imagePreview || !cropType}
-                className="flex-1"
-              >
+              <Button onClick={handleAnalyze} disabled={loading || !imagePreview || !cropType} className="flex-1">
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Analyzing...
+                    {t('disease.analyzing')}
                   </>
                 ) : (
                   <>
                     <Leaf className="mr-2 h-4 w-4" />
-                    Analyze Disease
+                    {t('disease.analyze')}
                   </>
                 )}
               </Button>
               {(imagePreview || detection) && (
-                <Button variant="outline" onClick={resetForm}>
-                  Reset
-                </Button>
+                <Button variant="outline" onClick={resetForm}>{t('common.reset')}</Button>
               )}
             </div>
+
+            {error && (
+              <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-800 rounded-lg p-3 text-sm">
+                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <p>{error}</p>
+              </div>
+            )}
+            {notice && (
+              <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-900 rounded-lg p-3 text-sm">
+                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <p>{notice}</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
         {detection && (
-          <Card className="border-2 border-orange-200">
-            <CardHeader className="bg-orange-50">
+          <Card className={`border-2 ${detection.healthy ? 'border-green-200' : 'border-orange-200'}`}>
+            <CardHeader className={detection.healthy ? 'bg-green-50' : 'bg-orange-50'}>
               <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-orange-600" />
-                Detection Results
+                {detection.healthy ? (
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                ) : (
+                  <AlertTriangle className="h-5 w-5 text-orange-600" />
+                )}
+                {t('disease.resultTitle')}
               </CardTitle>
-              <CardDescription>AI Analysis Complete</CardDescription>
+              <CardDescription>{t('disease.resultSub')}</CardDescription>
             </CardHeader>
             <CardContent className="pt-6 space-y-6">
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xl font-bold text-gray-900">{detection.name}</h3>
-                  <span className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm font-medium">
-                    {Math.round(detection.confidence * 100)}% confidence
+                <div className="flex items-center justify-between mb-2 gap-2">
+                  <h3 className="text-xl font-bold text-gray-900">
+                    {detection.healthy ? detection.name : `${t('disease.likely')} ${detection.name}`}
+                  </h3>
+                  <span
+                    className={`px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap ${
+                      detection.healthy ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'
+                    }`}
+                  >
+                    {Math.round(detection.confidence * 100)}% {t('disease.modelConfidence')}
                   </span>
                 </div>
                 <p className="text-gray-700">{detection.description}</p>
               </div>
 
-              <div className="pt-4 border-t">
-                <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                  Treatment Methods
-                </h4>
-                <ul className="space-y-2">
-                  {detection.treatment.map((item: string, index: number) => (
-                    <li key={index} className="flex items-start gap-2 text-sm text-gray-700">
-                      <span className="text-green-600 mt-1">✓</span>
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              {detection.treatment?.length > 0 && (
+                <div className="pt-4 border-t">
+                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    {t('disease.treatment')}
+                  </h4>
+                  <ul className="space-y-2">
+                    {detection.treatment.map((item: string, index: number) => (
+                      <li key={index} className="flex items-start gap-2 text-sm text-gray-700">
+                        <span className="text-green-600 mt-1">✓</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
-              <div className="pt-4 border-t">
-                <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <Leaf className="h-5 w-5 text-blue-600" />
-                  Prevention Tips
-                </h4>
-                <ul className="space-y-2">
-                  {detection.prevention.map((item: string, index: number) => (
-                    <li key={index} className="flex items-start gap-2 text-sm text-gray-700">
-                      <span className="text-blue-600 mt-1">•</span>
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              {detection.prevention?.length > 0 && (
+                <div className="pt-4 border-t">
+                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Leaf className="h-5 w-5 text-blue-600" />
+                    {t('disease.prevention')}
+                  </h4>
+                  <ul className="space-y-2">
+                    {detection.prevention.map((item: string, index: number) => (
+                      <li key={index} className="flex items-start gap-2 text-sm text-gray-700">
+                        <span className="text-blue-600 mt-1">•</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {alternatives.length > 0 && (
+                <div className="pt-4 border-t">
+                  <p className="text-xs font-semibold text-gray-600 mb-2">Other possibilities considered</p>
+                  <div className="flex flex-wrap gap-2">
+                    {alternatives.map((alt: any, i: number) => (
+                      <span key={i} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">
+                        {alt.name} · {Math.round(alt.confidence * 100)}%
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <Card className="bg-amber-50 border-amber-200">
                 <CardContent className="pt-4 pb-4">
                   <p className="text-xs text-amber-900">
-                    <strong>Note:</strong> This is an AI-based diagnosis. For severe infections or 
-                    confirmation, please consult with a local agricultural expert or extension officer.
+                    <strong>{t('disease.note')}</strong> {t('disease.noteText')}
+                  </p>
+                  <p className="text-xs text-amber-900 mt-2">
+                    {t('disease.leafOnlyNote')}
                   </p>
                 </CardContent>
               </Card>
@@ -247,33 +305,20 @@ export function DiseaseDetection({ accessToken }: DiseaseDetectionProps) {
               <div className="text-center space-y-4">
                 <Leaf className="h-16 w-16 mx-auto text-green-600" />
                 <div>
-                  <h3 className="text-lg font-semibold text-green-900 mb-2">
-                    How It Works
-                  </h3>
+                  <h3 className="text-lg font-semibold text-green-900 mb-2">{t('disease.howTitle')}</h3>
                   <div className="text-left space-y-3 text-sm text-gray-700 max-w-md mx-auto">
-                    <div className="flex items-start gap-2">
-                      <span className="font-semibold text-green-700">1.</span>
-                      <span>Select your crop type from the dropdown</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="font-semibold text-green-700">2.</span>
-                      <span>Upload a clear photo of the infected leaf or plant part</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="font-semibold text-green-700">3.</span>
-                      <span>Our AI will analyze and identify the disease</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="font-semibold text-green-700">4.</span>
-                      <span>Get treatment recommendations and prevention tips</span>
-                    </div>
+                    {[t('disease.how1'), t('disease.how2'), t('disease.how3'), t('disease.how4')].map((step, i) => (
+                      <div key={i} className="flex items-start gap-2">
+                        <span className="font-semibold text-green-700">{i + 1}.</span>
+                        <span>{step}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
                 <Card className="bg-white">
                   <CardContent className="pt-4 pb-4">
                     <p className="text-xs text-gray-600">
-                      💡 <strong>Pro Tip:</strong> Take photos in natural daylight for best results. 
-                      Focus on the affected area and ensure the image is not blurry.
+                      💡 <strong>{t('disease.proTip')}</strong> {t('disease.proTipText')}
                     </p>
                   </CardContent>
                 </Card>
