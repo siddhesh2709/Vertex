@@ -12,7 +12,7 @@ interface Message {
 export function Chatbot() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { id: 1, text: 'Hello! I am the AgroLyft assistant. How can I help you with your farm today?', sender: 'bot' }
+    { id: 1, text: 'Hello! I am the Vertex assistant. How can I help you with your farm today?', sender: 'bot' }
   ]);
   const [inputText, setInputText] = useState('');
 
@@ -49,7 +49,7 @@ export function Chatbot() {
           <div className="bg-green-600 p-4 text-white flex justify-between items-center">
             <div className="flex items-center gap-2">
               <MessageCircle className="w-5 h-5" />
-              <span className="font-medium">AgroLyft Assistant</span>
+              <span className="font-medium">Vertex Assistant</span>
             </div>
             <button
               onClick={() => setIsOpen(false)}

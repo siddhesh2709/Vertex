@@ -5,7 +5,9 @@ import { Label } from './ui/label';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Sprout, Loader2 } from 'lucide-react';
+import { LanguageSelect } from './LanguageSelect';
 import { auth, googleProvider } from '../config/firebase';
+import { useTranslation } from '../i18n';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, updateProfile } from 'firebase/auth';
 import api from '../services/api';
 
@@ -14,6 +16,7 @@ interface AuthPageProps {
 }
 
 export function AuthPage({ onLogin }: AuthPageProps) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -83,25 +86,28 @@ export function AuthPage({ onLogin }: AuthPageProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
+        <div className="flex justify-end mb-4">
+          <LanguageSelect />
+        </div>
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-green-600 text-white rounded-full mb-4">
             <Sprout className="w-8 h-8" />
           </div>
           <h1 className="text-4xl font-bold text-green-900 mb-2">Vertex</h1>
-          <p className="text-green-700">AI-Powered Farming Ecosystem</p>
+          <p className="text-green-700">{t('app.tagline')}</p>
         </div>
 
         <Tabs defaultValue="login" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="login">Login</TabsTrigger>
-            <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            <TabsTrigger value="login">{t('auth.login')}</TabsTrigger>
+            <TabsTrigger value="signup">{t('auth.signup')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="login">
             <Card>
               <CardHeader>
-                <CardTitle>Welcome Back</CardTitle>
-                <CardDescription>Login to your farming dashboard</CardDescription>
+                <CardTitle>{t('auth.loginTitle')}</CardTitle>
+                <CardDescription>{t('auth.loginSub')}</CardDescription>
               </CardHeader>
               <form onSubmit={handleLogin}>
                 <CardContent className="space-y-4">
@@ -111,24 +117,24 @@ export function AuthPage({ onLogin }: AuthPageProps) {
                     </div>
                   )}
                   <div className="space-y-2">
-                    <Label htmlFor="login-email">Email</Label>
+                    <Label htmlFor="login-email">{t('auth.email')}</Label>
                     <Input id="login-email" name="email" type="email" placeholder="farmer@example.com" required />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="login-password">Password</Label>
+                    <Label htmlFor="login-password">{t('auth.password')}</Label>
                     <Input id="login-password" name="password" type="password" required />
                   </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
                   <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Login'}
+                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : t('auth.login')}
                   </Button>
                   <div className="relative w-full">
                     <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
                     <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">Or continue with</span></div>
                   </div>
                   <Button type="button" variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={loading}>
-                    Login with Google
+                    {t('auth.google')}
                   </Button>
                 </CardFooter>
               </form>
@@ -138,8 +144,8 @@ export function AuthPage({ onLogin }: AuthPageProps) {
           <TabsContent value="signup">
             <Card>
               <CardHeader>
-                <CardTitle>Create Account</CardTitle>
-                <CardDescription>Join the Vertex community</CardDescription>
+                <CardTitle>{t('auth.signupTitle')}</CardTitle>
+                <CardDescription>{t('auth.signupSub')}</CardDescription>
               </CardHeader>
               <form onSubmit={handleSignup}>
                 <CardContent className="space-y-4">
@@ -149,21 +155,21 @@ export function AuthPage({ onLogin }: AuthPageProps) {
                     </div>
                   )}
                   <div className="space-y-2">
-                    <Label htmlFor="signup-name">Full Name</Label>
+                    <Label htmlFor="signup-name">{t('auth.name')}</Label>
                     <Input id="signup-name" name="name" placeholder="John Doe" required />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
+                    <Label htmlFor="signup-email">{t('auth.email')}</Label>
                     <Input id="signup-email" name="email" type="email" placeholder="farmer@example.com" required />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-password">Password</Label>
+                    <Label htmlFor="signup-password">{t('auth.password')}</Label>
                     <Input id="signup-password" name="password" type="password" required />
                   </div>
                 </CardContent>
                 <CardFooter>
                   <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Create Account'}
+                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : t('auth.signupTitle')}
                   </Button>
                 </CardFooter>
               </form>

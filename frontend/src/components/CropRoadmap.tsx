@@ -6,12 +6,22 @@ import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Loader2, CheckCircle2, Circle, Calendar } from 'lucide-react';
 import api from '../services/api';
+import { useTranslation } from '../i18n';
 
-interface CropRoadmapProps {
-  accessToken: string;
+// Advisor crops carry qualifiers like "Rice (Paddy)"; the roadmap keys on the bare name.
+const ROADMAP_CROPS = ['Rice', 'Wheat', 'Tomato', 'Cotton', 'Potato', 'Maize', 'Sugarcane'];
+
+function normalizeCropName(name: string): string {
+  const base = name.replace(/\s*\(.*?\)\s*/g, '').trim();
+  return ROADMAP_CROPS.find((c) => c.toLowerCase() === base.toLowerCase()) ?? base;
 }
 
-export function CropRoadmap(_props: CropRoadmapProps) {
+interface CropRoadmapProps {
+  prefill?: { cropName: string; landArea: string } | null;
+}
+
+export function CropRoadmap({ prefill }: CropRoadmapProps) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [roadmap, setRoadmap] = useState<any>(null);
   const [formData, setFormData] = useState({
@@ -19,6 +29,16 @@ export function CropRoadmap(_props: CropRoadmapProps) {
     landArea: '',
     startDate: new Date().toISOString().split('T')[0]
   });
+
+  // Pre-fill when a crop was sent over from Crop Advisor.
+  useEffect(() => {
+    if (!prefill) return;
+    setFormData((prev) => ({
+      ...prev,
+      cropName: normalizeCropName(prefill.cropName),
+      landArea: prefill.landArea || prev.landArea
+    }));
+  }, [prefill]);
 
   const [loadingSaved, setLoadingSaved] = useState(true);
   const [updatingTask, setUpdatingTask] = useState<string | null>(null);
@@ -195,27 +215,27 @@ export function CropRoadmap(_props: CropRoadmapProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-green-900">Smart Crop Roadmap 📆</h1>
+        <h1 className="text-3xl font-bold text-green-900">{t('roadmap.title')} 📆</h1>
         <p className="text-green-700 mt-1">Get a week-by-week plan for your crop cultivation</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Select Your Crop</CardTitle>
-          <CardDescription>Generate a customized farming schedule</CardDescription>
+          <CardTitle>{t('roadmap.formTitle')}</CardTitle>
+          <CardDescription>{t('roadmap.formSub')}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="cropName">Crop Name</Label>
+                <Label htmlFor="cropName">{t('roadmap.cropName')}</Label>
                 <Select
                   value={formData.cropName}
                   onValueChange={(value) => setFormData({ ...formData, cropName: value })}
                   required
                 >
                   <SelectTrigger id="cropName">
-                    <SelectValue placeholder="Select crop" />
+                    <SelectValue placeholder={t('roadmap.selectCrop')} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Rice">Rice</SelectItem>
@@ -227,7 +247,7 @@ export function CropRoadmap(_props: CropRoadmapProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="landArea">Land Area (acres)</Label>
+                <Label htmlFor="landArea">{t('advisor.landArea')}</Label>
                 <Input
                   id="landArea"
                   type="number"
@@ -241,7 +261,7 @@ export function CropRoadmap(_props: CropRoadmapProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="startDate">Start Date</Label>
+                <Label htmlFor="startDate">{t('roadmap.startDate')}</Label>
                 <Input
                   id="startDate"
                   type="date"
@@ -256,10 +276,10 @@ export function CropRoadmap(_props: CropRoadmapProps) {
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating Roadmap...
+                  {t('roadmap.generating')}
                 </>
               ) : (
-                'Generate Roadmap'
+                t('roadmap.submit')
               )}
             </Button>
           </form>
@@ -308,7 +328,7 @@ export function CropRoadmap(_props: CropRoadmapProps) {
                   <div className="flex flex-col items-center">
                     <div className="relative z-10 flex items-center justify-center w-16 h-16 bg-white border-2 border-green-600 rounded-full">
                       <div className="text-center">
-                        <div className="text-xs text-gray-600">Week</div>
+                        <div className="text-xs text-gray-600">{t('common.week')}</div>
                         <div className="text-lg font-bold text-green-900">{task.week}</div>
                       </div>
                     </div>

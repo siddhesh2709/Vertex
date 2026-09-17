@@ -6,7 +6,9 @@
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "seed": "node src/seed.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "model": "python ml/serve.py 5001",
+    "seed:posts": "node src/seedPosts.js"
   },
   "keywords": [],
   "author": "",
