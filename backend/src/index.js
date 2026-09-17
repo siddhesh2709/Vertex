@@ -44,12 +44,9 @@ app.get('/health', (req, res) => {
 
 // Database Connections & Server Start
 const startServer = async () => {
+  // Connect to PostgreSQL (non-fatal)
   try {
     await connectPostgres();
-    await connectMongo();
-    await connectRedis();
-
-    // Sync PostgreSQL Models
     await sequelize.sync({ alter: true });
     console.log('✅ PostgreSQL models synced.');
 
@@ -62,9 +59,26 @@ const startServer = async () => {
       console.log(`🚀 Vertex Backend running on port ${PORT}`);
     });
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
-    process.exit(1);
+    console.error('⚠️  PostgreSQL unavailable, continuing without it:', error.message);
   }
+
+  // Connect to MongoDB (non-fatal)
+  try {
+    await connectMongo();
+  } catch (error) {
+    console.error('⚠️  MongoDB unavailable, continuing without it:', error.message);
+  }
+
+  // Connect to Redis (non-fatal)
+  try {
+    await connectRedis();
+  } catch (error) {
+    console.error('⚠️  Redis unavailable, continuing without it:', error.message);
+  }
+
+  app.listen(PORT, () => {
+    console.log(`🚀 HarvestHub Backend running on port ${PORT}`);
+  });
 };
 
 startServer();

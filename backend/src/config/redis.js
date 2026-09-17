@@ -1,7 +1,10 @@
 const { createClient } = require('redis');
 
 const redisClient = createClient({
-    url: process.env.REDIS_URL
+    url: process.env.REDIS_URL,
+    socket: {
+        reconnectStrategy: false  // Don't auto-reconnect; avoids log spam when Docker is down
+    }
 });
 
 redisClient.on('error', (err) => console.log('❌ Redis Client Error', err));
