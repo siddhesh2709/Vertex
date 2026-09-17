@@ -18,6 +18,7 @@ export function DiseaseDetection() {
   const [cropType, setCropType] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [unusual, setUnusual] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -70,6 +71,7 @@ export function DiseaseDetection() {
       } else {
         setDetection(response.data.detection);
         setAlternatives(response.data.alternatives || []);
+        setUnusual(Boolean(response.data.unusualImage));
       }
     } catch (err: any) {
       console.error('Failed to analyze image:', err);
@@ -223,6 +225,12 @@ export function DiseaseDetection() {
               <CardDescription>{t('disease.resultSub')}</CardDescription>
             </CardHeader>
             <CardContent className="pt-6 space-y-6">
+              {unusual && (
+                <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-900 rounded-lg p-3 text-sm">
+                  <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <p>{t('disease.unusual')}</p>
+                </div>
+              )}
               <div>
                 <div className="flex items-center justify-between mb-2 gap-2">
                   <h3 className="text-xl font-bold text-gray-900">

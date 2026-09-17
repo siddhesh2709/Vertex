@@ -25,8 +25,14 @@ const detectDisease = async (req, res) => {
         const { top, ranked, energy, energyThreshold, looksLikeLeaf } = await diseaseModel.predict(req.file.buffer);
 
         // The classifier has no "not a leaf" class, so softmax stays confident on
-        // anything at all. Reject low-energy input before reporting a diagnosis.
-        if (looksLikeLeaf === false) {
+        // anything at all. Energy (logsumexp of logits) is the usable signal, but it
+        // was calibrated on PlantVillage lab shots - single leaf, plain background.
+        // Real field photos score lower even when the crop and disease are correct,
+        // so a hard gate at the lab threshold rejects legitimate uploads. Only clear
+        // junk is refused; everything between is answered with a visible caveat.
+        const HARD_REJECT_BELOW = 5.0;
+
+        if (energy < HARD_REJECT_BELOW) {
             return res.json({
                 notALeaf: true,
                 cropType,
@@ -35,6 +41,8 @@ const detectDisease = async (req, res) => {
                 message: 'This does not look like a leaf photo the model can read.'
             });
         }
+
+        const unusualImage = energy < energyThreshold;
 
         // Keep only predictions for the crop the farmer selected, so a tomato
         // model class can't be returned for a potato photo.
@@ -62,6 +70,9 @@ const detectDisease = async (req, res) => {
         const meta = diseaseModel.getMeta();
 
         res.json({
+            // True when the photo sits outside the lab-image distribution the model
+            // was trained on; the UI warns rather than hiding the result.
+            unusualImage,
             detection: {
                 className: best.className,
                 name: info.label,
