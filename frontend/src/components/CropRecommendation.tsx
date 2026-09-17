@@ -4,12 +4,14 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Loader2, Droplets, TrendingUp, Clock, IndianRupee, MapPin } from 'lucide-react';
+import { Loader2, Droplets, TrendingUp, Clock, IndianRupee, MapPin, AlertCircle } from 'lucide-react';
 import api from '../services/api';
 
 export function CropRecommendation() {
   const [loading, setLoading] = useState(false);
   const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     soilType: '',
     landArea: '',
@@ -20,6 +22,7 @@ export function CropRecommendation() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
 
     try {
       // 1. Update user profile with farm details
@@ -29,12 +32,17 @@ export function CropRecommendation() {
         location: formData.location
       });
 
-      // 2. Get recommendations
-      const response = await api.get('/crops/recommendations');
+      // 2. Get recommendations, filtered by soil (profile) and season (query param)
+      const response = await api.get('/crops/recommendations', {
+        params: { season: formData.season }
+      });
       setRecommendations(response.data);
-    } catch (error) {
-      console.error('Failed to get recommendations:', error);
+    } catch (err) {
+      console.error('Failed to get recommendations:', err);
+      setError('Could not fetch recommendations right now. Please check your connection and try again.');
+      setRecommendations([]);
     } finally {
+      setHasSearched(true);
       setLoading(false);
     }
   };
@@ -43,7 +51,7 @@ export function CropRecommendation() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-green-900">Crop Advisor 🌱</h1>
-        <p className="text-green-700 mt-1">Get AI-powered crop suggestions based on your soil and land</p>
+        <p className="text-green-700 mt-1">Get crop suggestions matched to your soil and land</p>
       </div>
 
       <Card>
@@ -93,6 +101,21 @@ export function CropRecommendation() {
           </form>
         </CardContent>
       </Card>
+
+      {error && (
+        <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-800 rounded-lg p-4">
+          <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+          <p className="text-sm">{error}</p>
+        </div>
+      )}
+
+      {!error && hasSearched && !loading && recommendations.length === 0 && (
+        <div className="flex flex-col items-center text-center gap-2 bg-amber-50 border border-amber-200 text-amber-900 rounded-lg p-8">
+          <AlertCircle className="h-8 w-8 text-amber-600" />
+          <p className="font-medium">No matching crops found for {formData.soilType} soil in {formData.season} season</p>
+          <p className="text-sm text-amber-700">Our seeded crop set is small right now — try a different soil type or season.</p>
+        </div>
+      )}
 
       {recommendations.length > 0 && (
         <div className="space-y-4">

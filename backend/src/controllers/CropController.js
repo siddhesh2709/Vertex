@@ -10,11 +10,14 @@ const getRecommendations = async (req, res) => {
             return res.json(crops);
         }
 
-        // Simple matching algorithm: soilType and current season
-        // In production, this would be more complex (using weather, humidity, etc.)
-        const recommendations = await Crop.find({
-            suitableSoil: { $in: [user.soilType] }
-        });
+        // Rule-based matching: soilType is required; season (if supplied) narrows further.
+        const query = { suitableSoil: { $in: [user.soilType] } };
+        const { season } = req.query;
+        if (season) {
+            query.growingSeason = { $in: [season] };
+        }
+
+        const recommendations = await Crop.find(query);
 
         res.json(recommendations);
     } catch (error) {

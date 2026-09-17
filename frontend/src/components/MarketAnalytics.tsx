@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card';
-import { TrendingUp, TrendingDown, Minus, IndianRupee } from 'lucide-react';
-import { projectId } from '../utils/supabase/info';
+import { TrendingUp, TrendingDown, Minus, IndianRupee, AlertCircle } from 'lucide-react';
+import api from '../services/api';
 
-interface MarketAnalyticsProps {
-  accessToken: string;
-}
-
-export function MarketAnalytics({ accessToken }: MarketAnalyticsProps) {
+export function MarketAnalytics() {
   const [prices, setPrices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchMarketPrices();
@@ -17,21 +14,11 @@ export function MarketAnalytics({ accessToken }: MarketAnalyticsProps) {
 
   const fetchMarketPrices = async () => {
     try {
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-e63c4de1/market-prices`,
-        {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`
-          }
-        }
-      );
-
-      const data = await response.json();
-      if (response.ok) {
-        setPrices(data.prices || []);
-      }
+      const response = await api.get('/market/prices');
+      setPrices(response.data.prices || []);
     } catch (error) {
       console.error('Failed to fetch market prices:', error);
+      setFetchError('Could not load prices right now.');
     } finally {
       setLoading(false);
     }
@@ -63,8 +50,27 @@ export function MarketAnalytics({ accessToken }: MarketAnalyticsProps) {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-green-900">Market Analytics 💰</h1>
-        <p className="text-green-700 mt-1">Real-time crop prices and market trends</p>
+        <p className="text-green-700 mt-1">Crop prices and market trends</p>
       </div>
+
+      <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-900 rounded-lg p-4">
+        <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+        <p className="text-sm">
+          <span className="font-semibold">Prototype screen.</span> Prices and the profit/loss figures below are
+          illustrative sample data, not live mandi rates.
+        </p>
+      </div>
+
+      {fetchError && (
+        <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-800 rounded-lg p-4">
+          <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+          <p className="text-sm">{fetchError}</p>
+        </div>
+      )}
+
+      {!fetchError && prices.length === 0 && !loading && (
+        <p className="text-sm text-gray-500 italic">No sample prices loaded for this session.</p>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {prices.map((item, index) => (
@@ -99,9 +105,14 @@ export function MarketAnalytics({ accessToken }: MarketAnalyticsProps) {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Profit/Loss Calculator</CardTitle>
-          <CardDescription>Estimate your earnings based on current market rates</CardDescription>
+        <CardHeader className="flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle>Profit/Loss Example</CardTitle>
+            <CardDescription>Illustrative figures — not an interactive calculator yet</CardDescription>
+          </div>
+          <span className="text-[10px] font-medium uppercase tracking-wide text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full whitespace-nowrap">
+            Sample data
+          </span>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -219,8 +230,12 @@ export function MarketAnalytics({ accessToken }: MarketAnalyticsProps) {
                 Set up notifications for your crops and never miss the best selling opportunity
               </p>
             </div>
-            <button className="px-6 py-3 bg-white text-green-700 font-semibold rounded-lg hover:bg-green-50 transition-colors">
-              Enable Alerts
+            <button
+              disabled
+              title="Not implemented yet"
+              className="px-6 py-3 bg-white/60 text-green-700/60 font-semibold rounded-lg cursor-not-allowed"
+            >
+              Coming Soon
             </button>
           </div>
         </CardContent>

@@ -189,10 +189,10 @@ export default function App() {
           <div className="max-w-7xl mx-auto">
             {currentView === 'dashboard' && <Dashboard user={user} />}
             {currentView === 'crop-recommendation' && <CropRecommendation />}
-            {currentView === 'crop-roadmap' && <CropRoadmap accessToken={token} />}
-            {currentView === 'disease-detection' && <DiseaseDetection accessToken={token} />}
+            {currentView === 'crop-roadmap' && <CropRoadmap />}
+            {currentView === 'disease-detection' && <DiseaseDetection />}
             {currentView === 'farm-feed' && <FarmFeed user={user} />}
-            {currentView === 'market-analytics' && <MarketAnalytics accessToken={token} />}
+            {currentView === 'market-analytics' && <MarketAnalytics />}
           </div>
         </main>
       </div>

@@ -4,16 +4,13 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Loader2, CheckCircle2, Circle, Calendar } from 'lucide-react';
-import { projectId } from '../utils/supabase/info';
+import { Loader2, CheckCircle2, Circle, Calendar, AlertCircle } from 'lucide-react';
+import api from '../services/api';
 
-interface CropRoadmapProps {
-  accessToken: string;
-}
-
-export function CropRoadmap({ accessToken }: CropRoadmapProps) {
+export function CropRoadmap() {
   const [loading, setLoading] = useState(false);
   const [roadmap, setRoadmap] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     cropName: '',
     landArea: '',
@@ -23,28 +20,14 @@ export function CropRoadmap({ accessToken }: CropRoadmapProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
 
     try {
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-e63c4de1/generate-roadmap`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`
-          },
-          body: JSON.stringify(formData)
-        }
-      );
-
-      const data = await response.json();
-      if (response.ok) {
-        setRoadmap(data.roadmap);
-      } else {
-        console.error('Roadmap error:', data.error);
-      }
-    } catch (error) {
-      console.error('Failed to generate roadmap:', error);
+      const response = await api.post('/roadmap/generate', formData);
+      setRoadmap(response.data.roadmap);
+    } catch (err) {
+      console.error('Failed to generate roadmap:', err);
+      setError('Could not generate a roadmap right now. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -126,8 +109,21 @@ export function CropRoadmap({ accessToken }: CropRoadmapProps) {
         </CardContent>
       </Card>
 
+      {error && (
+        <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-800 rounded-lg p-4">
+          <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+          <p className="text-sm">{error}</p>
+        </div>
+      )}
+
       {roadmap && (
         <div className="space-y-4">
+          {roadmap.usedFallbackTemplate && (
+            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-900 rounded-lg p-3 text-sm">
+              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <p>We don't have a dedicated template for {roadmap.cropName} yet — showing a generic schedule instead.</p>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-green-900">
