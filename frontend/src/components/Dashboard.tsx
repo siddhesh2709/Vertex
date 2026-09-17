@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card';
-import { TrendingUp, TrendingDown, Leaf, Calendar, AlertCircle, Users, Cloud, Thermometer, Droplets, Wind } from 'lucide-react';
+import { TrendingUp, TrendingDown, Leaf, Calendar, AlertCircle, Users, Cloud, Droplets, Wind, MapPin } from 'lucide-react';
 import api from '../services/api';
 
 interface DashboardProps {
@@ -62,7 +62,7 @@ export function Dashboard({ user }: DashboardProps) {
         <div>
           <h1 className="text-3xl font-bold text-green-900">Welcome back, {userName}! 🌾</h1>
           <p className="text-green-700 mt-1 flex items-center gap-2">
-            <MapPinIcon className="h-4 w-4" /> {locationText}
+            <MapPin className="h-4 w-4" /> {locationText}
           </p>
         </div>
 
@@ -203,10 +203,6 @@ function SampleBadge() {
       Sample data
     </span>
   );
-}
-
-function MapPinIcon({ className }: { className?: string }) {
-  return <path className={className} d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" stroke="currentColor" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />;
 }
 
 function TaskItem({ color, title, desc, due }: any) {

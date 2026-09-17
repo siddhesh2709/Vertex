@@ -40,6 +40,10 @@ const getCropById = async (req, res) => {
         if (!crop) return res.status(404).json({ error: 'Crop not found' });
         res.json(crop);
     } catch (error) {
+        // A malformed id throws a CastError rather than returning null.
+        if (error.name === 'CastError') {
+            return res.status(404).json({ error: 'Crop not found' });
+        }
         res.status(500).json({ error: error.message });
     }
 };
