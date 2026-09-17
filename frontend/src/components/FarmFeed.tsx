@@ -3,7 +3,7 @@ import { Card, CardHeader, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { Heart, MessageCircle, Upload, Loader2, MapPin, Send, AlertCircle } from 'lucide-react';
+import { Heart, MessageCircle, Upload, Loader2, MapPin, Send } from 'lucide-react';
 import api from '../services/api';
 
 interface FarmFeedProps {
@@ -18,7 +18,6 @@ export function FarmFeed({ user }: FarmFeedProps) {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [showComments, setShowComments] = useState<string | null>(null);
   const [commentText, setCommentText] = useState<Record<string, string>>({});
-  const [postError, setPostError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -49,14 +48,7 @@ export function FarmFeed({ user }: FarmFeedProps) {
   const handleCreatePost = async () => {
     if (!newPostContent.trim() && !selectedFile) return;
 
-    // The post model requires caption text even when a photo is attached.
-    if (selectedFile && !newPostContent.trim()) {
-      setPostError('Please add a short caption for your photo before posting.');
-      return;
-    }
-
     setLoading(true);
-    setPostError(null);
     const formData = new FormData();
     formData.append('content', newPostContent);
     if (selectedFile) {
@@ -74,7 +66,6 @@ export function FarmFeed({ user }: FarmFeedProps) {
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (error) {
       console.error('Failed to create post:', error);
-      setPostError('Could not publish your post. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -150,12 +141,6 @@ export function FarmFeed({ user }: FarmFeedProps) {
                     setSelectedFile(null);
                     if (fileInputRef.current) fileInputRef.current.value = '';
                   }}>Remove</Button>
-                </div>
-              )}
-              {postError && (
-                <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-800 rounded-lg p-3 text-sm">
-                  <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                  <p>{postError}</p>
                 </div>
               )}
               <div className="flex items-center justify-between">

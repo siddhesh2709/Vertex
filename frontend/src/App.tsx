@@ -8,7 +8,6 @@ import { CropRoadmap } from './components/CropRoadmap';
 import { DiseaseDetection } from './components/DiseaseDetection';
 import { FarmFeed } from './components/FarmFeed';
 import { MarketAnalytics } from './components/MarketAnalytics';
-import { Chatbot } from './components/Chatbot';
 import { Button } from './components/ui/button';
 import api from './services/api';
 import {
@@ -88,7 +87,7 @@ export default function App() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-green-600 text-white rounded-full mb-4 animate-pulse">
             <Sprout className="w-8 h-8" />
           </div>
-          <p className="text-green-700">Loading AgroLyft...</p>
+          <p className="text-green-700">Loading Vertex...</p>
         </div>
       </div>
     );
@@ -117,7 +116,7 @@ export default function App() {
                 <Sprout className="w-6 h-6" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-green-900">AgroLyft</h1>
+                <h1 className="text-xl font-bold text-green-900">Vertex</h1>
                 <p className="text-xs text-green-700 hidden sm:block">Smart Farming, Elevated Growth</p>
               </div>
             </div>
@@ -190,16 +189,13 @@ export default function App() {
           <div className="max-w-7xl mx-auto">
             {currentView === 'dashboard' && <Dashboard user={user} />}
             {currentView === 'crop-recommendation' && <CropRecommendation />}
-            {currentView === 'crop-roadmap' && <CropRoadmap />}
-            {currentView === 'disease-detection' && <DiseaseDetection />}
+            {currentView === 'crop-roadmap' && <CropRoadmap accessToken={token} />}
+            {currentView === 'disease-detection' && <DiseaseDetection accessToken={token} />}
             {currentView === 'farm-feed' && <FarmFeed user={user} />}
-            {currentView === 'market-analytics' && <MarketAnalytics />}
+            {currentView === 'market-analytics' && <MarketAnalytics accessToken={token} />}
           </div>
         </main>
       </div>
-      
-      {/* Global Chatbot */}
-      <Chatbot />
     </div>
   );
 }

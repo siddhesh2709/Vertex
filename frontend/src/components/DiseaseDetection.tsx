@@ -3,15 +3,18 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Loader2, Upload, Camera, AlertTriangle, CheckCircle, Leaf, AlertCircle } from 'lucide-react';
-import api from '../services/api';
+import { Loader2, Upload, Camera, AlertTriangle, CheckCircle, Leaf } from 'lucide-react';
+import { projectId } from '../utils/supabase/info';
 
-export function DiseaseDetection() {
+interface DiseaseDetectionProps {
+  accessToken: string;
+}
+
+export function DiseaseDetection({ accessToken }: DiseaseDetectionProps) {
   const [loading, setLoading] = useState(false);
   const [detection, setDetection] = useState<any>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [cropType, setCropType] = useState('');
-  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -27,20 +30,36 @@ export function DiseaseDetection() {
 
   const handleAnalyze = async () => {
     if (!imagePreview || !cropType) {
-      setError('Please select a crop type and upload an image.');
+      alert('Please select a crop type and upload an image');
       return;
     }
 
     setLoading(true);
-    setError(null);
 
     try {
-      // Note: the image itself isn't sent - this prototype doesn't analyze it (see banner above).
-      const response = await api.post('/disease/detect', { cropType });
-      setDetection(response.data.detection);
-    } catch (err) {
-      console.error('Failed to detect disease:', err);
-      setError('Could not fetch a sample result right now. Please try again.');
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-e63c4de1/detect-disease`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`
+          },
+          body: JSON.stringify({
+            imageBase64: imagePreview,
+            cropType
+          })
+        }
+      );
+
+      const data = await response.json();
+      if (response.ok) {
+        setDetection(data.detection);
+      } else {
+        console.error('Detection error:', data.error);
+      }
+    } catch (error) {
+      console.error('Failed to detect disease:', error);
     } finally {
       setLoading(false);
     }
@@ -58,17 +77,8 @@ export function DiseaseDetection() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-green-900">Disease Detection (Prototype) 🔬</h1>
-        <p className="text-green-700 mt-1">Interface preview for a future crop disease diagnosis feature</p>
-      </div>
-
-      <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-900 rounded-lg p-4">
-        <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
-        <p className="text-sm">
-          <span className="font-semibold">Not a working model yet.</span> Your photo is not analyzed — the
-          "result" below is picked randomly from a short sample list, for demonstration only. Do not use it to
-          make real crop-treatment decisions.
-        </p>
+        <h1 className="text-3xl font-bold text-green-900">AI Disease Detection 🔬</h1>
+        <p className="text-green-700 mt-1">Upload a photo of your crop for instant disease diagnosis</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -151,12 +161,12 @@ export function DiseaseDetection() {
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Fetching sample result...
+                    Analyzing...
                   </>
                 ) : (
                   <>
                     <Leaf className="mr-2 h-4 w-4" />
-                    Show Sample Result
+                    Analyze Disease
                   </>
                 )}
               </Button>
@@ -166,12 +176,6 @@ export function DiseaseDetection() {
                 </Button>
               )}
             </div>
-            {error && (
-              <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-800 rounded-lg p-3 text-sm">
-                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <p>{error}</p>
-              </div>
-            )}
           </CardContent>
         </Card>
 
@@ -180,16 +184,16 @@ export function DiseaseDetection() {
             <CardHeader className="bg-orange-50">
               <CardTitle className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-orange-600" />
-                Sample Result
+                Detection Results
               </CardTitle>
-              <CardDescription>Randomly selected — not derived from your photo</CardDescription>
+              <CardDescription>AI Analysis Complete</CardDescription>
             </CardHeader>
             <CardContent className="pt-6 space-y-6">
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-xl font-bold text-gray-900">{detection.name}</h3>
                   <span className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm font-medium">
-                    {Math.round(detection.confidence * 100)}% confidence (sample value)
+                    {Math.round(detection.confidence * 100)}% confidence
                   </span>
                 </div>
                 <p className="text-gray-700">{detection.description}</p>
@@ -228,9 +232,8 @@ export function DiseaseDetection() {
               <Card className="bg-amber-50 border-amber-200">
                 <CardContent className="pt-4 pb-4">
                   <p className="text-xs text-amber-900">
-                    <strong>Note:</strong> This result is a placeholder for demonstration only — no image
-                    analysis was performed. Always consult a local agricultural expert or extension officer
-                    for a real diagnosis.
+                    <strong>Note:</strong> This is an AI-based diagnosis. For severe infections or 
+                    confirmation, please consult with a local agricultural expert or extension officer.
                   </p>
                 </CardContent>
               </Card>
@@ -258,11 +261,11 @@ export function DiseaseDetection() {
                     </div>
                     <div className="flex items-start gap-2">
                       <span className="font-semibold text-green-700">3.</span>
-                      <span>A sample result is shown (image analysis is not implemented yet)</span>
+                      <span>Our AI will analyze and identify the disease</span>
                     </div>
                     <div className="flex items-start gap-2">
                       <span className="font-semibold text-green-700">4.</span>
-                      <span>See example treatment and prevention tips for that sample result</span>
+                      <span>Get treatment recommendations and prevention tips</span>
                     </div>
                   </div>
                 </div>

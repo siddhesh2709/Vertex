@@ -87,8 +87,8 @@ export function AuthPage({ onLogin }: AuthPageProps) {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-green-600 text-white rounded-full mb-4">
             <Sprout className="w-8 h-8" />
           </div>
-          <h1 className="text-4xl font-bold text-green-900 mb-2">AgroLyft</h1>
-          <p className="text-green-700">Smart Farming, Elevated Growth</p>
+          <h1 className="text-4xl font-bold text-green-900 mb-2">Vertex</h1>
+          <p className="text-green-700">AI-Powered Farming Ecosystem</p>
         </div>
 
         <Tabs defaultValue="login" className="w-full">
@@ -139,7 +139,7 @@ export function AuthPage({ onLogin }: AuthPageProps) {
             <Card>
               <CardHeader>
                 <CardTitle>Create Account</CardTitle>
-                <CardDescription>Join the AgroLyft community</CardDescription>
+                <CardDescription>Join the Vertex community</CardDescription>
               </CardHeader>
               <form onSubmit={handleSignup}>
                 <CardContent className="space-y-4">

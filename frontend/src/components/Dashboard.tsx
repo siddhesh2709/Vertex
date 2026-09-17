@@ -1,245 +1,228 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card';
-import { TrendingUp, TrendingDown, Leaf, Calendar, AlertCircle, Users, Cloud, Droplets, Wind, MapPin } from 'lucide-react';
+import { Button } from './ui/button';
+import { Leaf, Calendar, CheckCircle2, Circle, MapPin, RefreshCw, Loader2, Cloud, Droplets, Wind } from 'lucide-react';
 import api from '../services/api';
 
 interface DashboardProps {
   user: any;
 }
 
-const FALLBACK_CITIES = [
-  { name: 'New Delhi', lat: 28.6139, lon: 77.209 },
-  { name: 'Mumbai', lat: 19.076, lon: 72.8777 },
-  { name: 'Ahmedabad', lat: 23.0225, lon: 72.5714 },
-  { name: 'Pune', lat: 18.5204, lon: 73.8567 },
-  { name: 'Bengaluru', lat: 12.9716, lon: 77.5946 },
-];
+interface Summary {
+  generatedAt: string;
+  profile: { name?: string; location?: string; soilType?: string; farmSize?: number } | null;
+  stats: {
+    cultivationPlans: number;
+    totalTasks: number;
+    completedTasks: number;
+    pendingTasks: number;
+    overdueTasks: number;
+    dueNext7Days: number;
+    progressPercent: number;
+  };
+  nextTasks: Array<{
+    id: string;
+    cultivationId: string;
+    title: string;
+    cropName: string;
+    description: string;
+    dueDate: string;
+    daysUntilDue: number;
+  }>;
+  recentPlans: Array<{
+    id: string;
+    cropName: string;
+    areaAcres: number;
+    startDate: string;
+    totalTasks: number;
+    completedTasks: number;
+    progressPercent: number;
+  }>;
+}
+
+function localCalendarDate() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+function displayDate(value: string) {
+  return new Date(value).toLocaleDateString('en-IN', {
+    day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'
+  });
+}
+
+function dueLabel(days: number) {
+  if (days < 0) return `${Math.abs(days)} day${days === -1 ? '' : 's'} overdue`;
+  if (days === 0) return 'Due today';
+  return `Due in ${days} day${days === 1 ? '' : 's'}`;
+}
 
 export function Dashboard({ user }: DashboardProps) {
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [refresh, setRefresh] = useState(0);
   const [weather, setWeather] = useState<any>(null);
-  const [loadingWeather, setLoadingWeather] = useState(false);
-  const [weatherError, setWeatherError] = useState<string | null>(null);
-  const [needsManualLocation, setNeedsManualLocation] = useState(false);
-
-  const fetchWeather = async (lat: number, lon: number) => {
-    setLoadingWeather(true);
-    setWeatherError(null);
-    try {
-      const response = await api.get('/weather/current', { params: { lat, lon } });
-      setWeather(response.data);
-      setNeedsManualLocation(false);
-    } catch (error) {
-      console.error('Failed to fetch weather:', error);
-      setWeatherError('Could not load weather for this location.');
-    } finally {
-      setLoadingWeather(false);
-    }
-  };
+  const [loadingWeather, setLoadingWeather] = useState(true);
+  const [weatherError, setWeatherError] = useState('');
 
   useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    setLoading(true);
+    setError('');
+
+    api.get('/dashboard/summary', {
+      params: { today: localCalendarDate() },
+      timeout: 15000,
+      signal: controller.signal
+    }).then(response => {
+      if (active) setSummary(response.data);
+    }).catch(err => {
+      if (active) setError(err.response?.data?.error || 'Could not load your dashboard. Please try again.');
+    }).finally(() => {
+      if (active) setLoading(false);
+    });
+
+    return () => { active = false; controller.abort(); };
+  }, [refresh, user?.firebaseUid]);
+
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    setLoadingWeather(true);
+    setWeatherError('');
+    setWeather(null);
+
     if (!navigator.geolocation) {
-      setNeedsManualLocation(true);
-      return;
+      setWeatherError('Location is not supported by this browser.');
+      setLoadingWeather(false);
+      return () => { active = false; controller.abort(); };
     }
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        fetchWeather(position.coords.latitude, position.coords.longitude);
-      },
-      (error) => {
-        console.error('Geolocation error:', error);
-        setNeedsManualLocation(true);
+    navigator.geolocation.getCurrentPosition(async position => {
+      if (!active) return;
+      try {
+        const response = await api.get('/weather/current', {
+          params: { lat: position.coords.latitude, lon: position.coords.longitude },
+          timeout: 15000,
+          signal: controller.signal
+        });
+        const current = response.data?.current;
+        if (!Number.isFinite(current?.main?.temp)) throw new Error('Invalid weather response');
+        if (active) setWeather(current);
+      } catch {
+        if (active) setWeatherError('Weather is unavailable. Please try again later.');
+      } finally {
+        if (active) setLoadingWeather(false);
       }
-    );
-  }, []);
+    }, err => {
+      if (!active) return;
+      setWeatherError(err.code === 1
+        ? 'Allow location access in your browser to see local weather.'
+        : 'Could not determine your location. Please try again later.');
+      setLoadingWeather(false);
+    }, { timeout: 10000, maximumAge: 300000 });
 
-  const userName = user?.name || user?.email?.split('@')[0] || 'Farmer';
-  const locationText = user?.location || 'Location not set';
+    return () => { active = false; controller.abort(); };
+  }, [refresh, user?.firebaseUid]);
+
+  const userName = summary?.profile?.name || user?.name || user?.email?.split('@')[0] || 'Farmer';
+  const location = summary?.profile?.location || user?.location || 'Location not set';
+  const stats = summary?.stats;
+  const cards = [
+    { label: 'Cultivation Plans', value: stats?.cultivationPlans, note: 'Saved plans, excluding cancelled plans', Icon: Leaf },
+    { label: 'Pending Tasks', value: stats?.pendingTasks, note: 'Unfinished tasks across your plans', Icon: Circle },
+    { label: 'Completed Tasks', value: stats?.completedTasks, note: 'Tasks you have marked complete', Icon: CheckCircle2 },
+    { label: 'Due Next 7 Days', value: stats?.dueNext7Days, note: 'Pending tasks due today through the next 6 days', Icon: Calendar }
+  ];
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-green-900">Welcome back, {userName}! 🌾</h1>
-          <p className="text-green-700 mt-1 flex items-center gap-2">
-            <MapPin className="h-4 w-4" /> {locationText}
-          </p>
+          <h1 className="text-3xl font-bold text-green-900">Welcome back, {userName}!</h1>
+          <p className="text-green-700 mt-1 flex items-center gap-2"><MapPin className="h-4 w-4" />{location}</p>
         </div>
+        <Button variant="outline" onClick={() => setRefresh(value => value + 1)} disabled={loading || loadingWeather}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />Refresh
+        </Button>
+      </div>
 
-        {weather && (
-          <div className="bg-white p-4 rounded-xl shadow-sm border flex items-center gap-4">
-            <div className="bg-blue-50 p-2 rounded-lg">
+      <Card>
+        <CardContent className="pt-6">
+          {loadingWeather ? (
+            <p className="flex items-center gap-2 text-sm text-gray-600" role="status"><Loader2 className="h-4 w-4 animate-spin" />Loading local weather...</p>
+          ) : weather ? (
+            <div className="flex flex-wrap items-center gap-6">
               <Cloud className="h-8 w-8 text-blue-600" />
+              <div><p className="text-2xl font-bold">{Math.round(weather.main.temp)}°C</p><p className="text-sm capitalize text-gray-600">{weather.name} · {weather.weather?.[0]?.description || 'Current weather'}</p></div>
+              <span className="flex items-center gap-2 text-sm"><Droplets className="h-4 w-4" />{weather.main.humidity ?? '—'}% humidity</span>
+              <span className="flex items-center gap-2 text-sm"><Wind className="h-4 w-4" />{weather.wind?.speed ?? '—'} m/s wind</span>
+              {weather.dt && <span className="text-xs text-gray-500">Observation: {new Date(weather.dt * 1000).toLocaleString('en-IN')}</span>}
             </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{Math.round(weather.current.main.temp)}°C</p>
-              <p className="text-sm text-gray-500 capitalize">{weather.current.weather[0].description}</p>
-            </div>
-            <div className="border-l pl-4 flex flex-col gap-1">
-              <div className="flex items-center gap-1 text-xs text-gray-500">
-                <Droplets className="h-3 w-3" /> {weather.current.main.humidity}%
-              </div>
-              <div className="flex items-center gap-1 text-xs text-gray-500">
-                <Wind className="h-3 w-3" /> {weather.current.wind.speed} m/s
-              </div>
-            </div>
-          </div>
-        )}
-
-        {loadingWeather && !weather && (
-          <div className="bg-white p-4 rounded-xl shadow-sm border text-sm text-gray-500">
-            Loading weather...
-          </div>
-        )}
-
-        {!weather && !loadingWeather && (needsManualLocation || weatherError) && (
-          <div className="bg-white p-4 rounded-xl shadow-sm border max-w-sm">
-            <p className="text-sm text-gray-600 mb-2">
-              {weatherError || "Couldn't access your location. Pick a city for a weather estimate:"}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {FALLBACK_CITIES.map((city) => (
-                <button
-                  key={city.name}
-                  onClick={() => fetchWeather(city.lat, city.lon)}
-                  className="text-xs px-3 py-1.5 bg-green-50 text-green-800 rounded-full hover:bg-green-100 transition-colors"
-                >
-                  {city.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-3 flex-row items-center justify-between space-y-0"><CardTitle className="text-sm font-medium text-gray-600">Active Crops</CardTitle><SampleBadge /></CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between"><div className="text-3xl font-bold text-green-900">3</div><Leaf className="h-8 w-8 text-green-600" /></div>
-            <p className="text-xs text-gray-500 mt-2">Rice, Wheat, Tomato</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3 flex-row items-center justify-between space-y-0"><CardTitle className="text-sm font-medium text-gray-600">Expected Profit</CardTitle><SampleBadge /></CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between"><div className="text-3xl font-bold text-green-900">₹1.2L</div><TrendingUp className="h-8 w-8 text-green-600" /></div>
-            <p className="text-xs text-green-600 mt-2 flex items-center"><TrendingUp className="h-3 w-3 mr-1" /> +12.5% from last season</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3 flex-row items-center justify-between space-y-0"><CardTitle className="text-sm font-medium text-gray-600">Tasks This Week</CardTitle><SampleBadge /></CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between"><div className="text-3xl font-bold text-orange-900">5</div><Calendar className="h-8 w-8 text-orange-600" /></div>
-            <p className="text-xs text-gray-500 mt-2">2 pending, 3 upcoming</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3 flex-row items-center justify-between space-y-0"><CardTitle className="text-sm font-medium text-gray-600">Community</CardTitle><SampleBadge /></CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between"><div className="text-3xl font-bold text-blue-900">127</div><Users className="h-8 w-8 text-blue-600" /></div>
-            <p className="text-xs text-gray-500 mt-2">Farmers connected</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader className="flex-row items-center justify-between space-y-0">
-            <div>
-              <CardTitle>Upcoming Tasks</CardTitle>
-              <CardDescription>Stay on track with your crop roadmap</CardDescription>
-            </div>
-            <SampleBadge />
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <TaskItem color="green" title="Fertilizer Application - Rice" desc="Apply urea 25kg/acre" due="2 days" />
-              <TaskItem color="blue" title="Irrigation - Wheat" desc="Light irrigation required" due="4 days" />
-              <TaskItem color="purple" title="Staking - Tomato" desc="Provide bamboo stakes" due="5 days" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex-row items-center justify-between space-y-0">
-            <div>
-              <CardTitle>Market Insights</CardTitle>
-              <CardDescription>Current crop prices in your region</CardDescription>
-            </div>
-            <SampleBadge />
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <MarketItem name="Rice" price="₹2,100/q" change="+5.2%" up />
-              <MarketItem name="Wheat" price="₹2,050/q" change="+3.1%" up />
-              <MarketItem name="Tomato" price="₹1,200/q" change="+12.5%" up />
-              <MarketItem name="Cotton" price="₹5,800/q" change="-2.3%" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="border-l-4 border-l-amber-500">
-        <CardHeader><CardTitle className="flex items-center gap-2"><AlertCircle className="h-5 w-5 text-amber-600" /> Quick Tips</CardTitle></CardHeader>
-        <CardContent>
-          <ul className="space-y-2 text-gray-700">
-            <TipItem tip="Monitor weather forecasts daily - heavy rain expected this week" />
-            <TipItem tip="Early blight season is approaching - inspect tomato plants regularly" />
-            <TipItem tip="Rice market prices are rising - consider holding stock for better rates" />
-          </ul>
+          ) : <p className="text-sm text-gray-600">{weatherError}</p>}
         </CardContent>
       </Card>
-    </div>
-  );
-}
 
-function SampleBadge() {
-  return (
-    <span className="text-[10px] font-medium uppercase tracking-wide text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full whitespace-nowrap">
-      Sample data
-    </span>
-  );
-}
+      {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">{error}{summary && ' The figures below are from the last successful refresh.'}</div>}
+      {loading && !summary && <p role="status" className="flex items-center gap-2 text-gray-600"><Loader2 className="h-4 w-4 animate-spin" />Loading your cultivation records...</p>}
 
-function TaskItem({ color, title, desc, due }: any) {
-  const colorMap: any = {
-    green: 'bg-green-50 text-green-900 border-green-600',
-    blue: 'bg-blue-50 text-blue-900 border-blue-600',
-    purple: 'bg-purple-50 text-purple-900 border-purple-600',
-  };
-  return (
-    <div className={`flex items-start gap-3 p-3 rounded-lg ${colorMap[color].split(' ')[0]}`}>
-      <div className={`w-2 h-2 rounded-full mt-2 ${colorMap[color].split(' ')[2].replace('border-', 'bg-')}`}></div>
-      <div className="flex-1">
-        <p className={`font-medium ${colorMap[color].split(' ')[1]}`}>{title}</p>
-        <p className="text-sm opacity-80">{desc}</p>
-        <p className="text-xs mt-1 opacity-70">Due in {due}</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {cards.map(({ label, value, note, Icon }) => (
+          <Card key={label}>
+            <CardHeader className="pb-3"><CardTitle className="text-sm font-medium text-gray-600">{label}</CardTitle></CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between"><div className="text-3xl font-bold text-green-900">{value ?? '—'}</div><Icon className="h-8 w-8 text-green-600" /></div>
+              <p className="text-xs text-gray-500 mt-2">{note}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
-    </div>
-  );
-}
 
-function MarketItem({ name, price, change, up }: any) {
-  return (
-    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-      <div><p className="font-medium text-gray-900">{name}</p><p className="text-sm text-gray-600">{price}</p></div>
-      <div className={`flex items-center ${up ? 'text-green-600' : 'text-red-600'}`}>
-        {up ? <TrendingUp className="h-4 w-4 mr-1" /> : <TrendingDown className="h-4 w-4 mr-1" />}
-        <span className="text-sm font-medium">{change}</span>
-      </div>
-    </div>
-  );
-}
+      {summary && (
+        <>
+          <Card>
+            <CardHeader><CardTitle>Overall Task Progress</CardTitle><CardDescription>{stats!.completedTasks} of {stats!.totalTasks} tasks completed across your saved plans</CardDescription></CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4"><progress aria-label="Overall task completion" className="w-full h-3" max={100} value={stats!.progressPercent} style={{ accentColor: '#16a34a' }} /><span className="font-semibold">{stats!.progressPercent}%</span></div>
+              {stats!.overdueTasks > 0 && <p className="mt-3 text-sm text-amber-800">{stats!.overdueTasks} pending task{stats!.overdueTasks === 1 ? ' is' : 's are'} overdue.</p>}
+              {stats!.cultivationPlans === 0 && <p className="mt-3 text-sm text-gray-600">Create your first plan in Crop Roadmap to start tracking your work.</p>}
+            </CardContent>
+          </Card>
 
-function TipItem({ tip }: { tip: string }) {
-  return (
-    <li className="flex items-start gap-2">
-      <span className="text-amber-600 mt-1">•</span>
-      <span>{tip}</span>
-    </li>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader><CardTitle>Tasks to Do</CardTitle><CardDescription>Up to 8 pending tasks, earliest due first. Includes overdue tasks.</CardDescription></CardHeader>
+              <CardContent className="space-y-3">
+                {summary.nextTasks.length === 0 ? <p className="text-sm text-gray-600">No pending tasks.</p> : summary.nextTasks.map(task => (
+                  <div key={`${task.cultivationId}-${task.id}`} className="rounded-lg border p-4">
+                    <p className="font-semibold text-gray-900">{task.title}</p>
+                    <p className="text-sm text-green-700 mt-1">{task.cropName}</p>
+                    <p className="text-sm text-gray-600 mt-1">{task.description}</p>
+                    <p className={`text-xs mt-2 ${task.daysUntilDue < 0 ? 'text-red-700' : 'text-gray-600'}`}>{displayDate(task.dueDate)} · {dueLabel(task.daysUntilDue)}</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader><CardTitle>Recent Cultivation Plans</CardTitle><CardDescription>Your 6 most recently created plans</CardDescription></CardHeader>
+              <CardContent className="space-y-3">
+                {summary.recentPlans.length === 0 ? <p className="text-sm text-gray-600">No cultivation plans yet.</p> : summary.recentPlans.map(plan => (
+                  <div key={plan.id} className="rounded-lg border p-4">
+                    <div className="flex items-center justify-between gap-3"><p className="font-semibold text-gray-900">{plan.cropName}</p><span className="text-sm text-green-700">{plan.progressPercent}%</span></div>
+                    <p className="mt-1 text-sm text-gray-600">{plan.areaAcres} acres · Started {displayDate(plan.startDate)}</p>
+                    <progress aria-label={`${plan.cropName} task completion`} className="w-full h-2 mt-3" max={100} value={plan.progressPercent} style={{ accentColor: '#16a34a' }} />
+                    <p className="mt-1 text-xs text-gray-500">{plan.completedTasks} of {plan.totalTasks} tasks complete</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+          <p className="text-xs text-gray-500">Updated {new Date(summary.generatedAt).toLocaleString('en-IN')}. Counts cover all your saved plans except cancelled plans. Open Crop Roadmap to update the latest plan's tasks.</p>
+        </>
+      )}
+    </div>
   );
 }

@@ -47,8 +47,6 @@ const getFeed = async (req, res) => {
 const likePost = async (req, res) => {
     try {
         const post = await Post.findById(req.params.id);
-        if (!post) return res.status(404).json({ error: 'Post not found' });
-
         const { uid } = req.user;
 
         if (post.likes.includes(uid)) {
@@ -69,7 +67,6 @@ const addComment = async (req, res) => {
         const { text } = req.body;
         const { uid, name } = req.user;
         const post = await Post.findById(req.params.id);
-        if (!post) return res.status(404).json({ error: 'Post not found' });
 
         post.comments.push({
             userId: uid,
