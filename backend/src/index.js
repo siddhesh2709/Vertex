@@ -44,40 +44,36 @@ app.get('/health', (req, res) => {
 
 // Database Connections & Server Start
 const startServer = async () => {
-  // Connect to PostgreSQL (non-fatal)
+  // Each dependency is non-fatal so the API still serves what it can, but they
+  // are all attempted before routes mount and before the port is bound.
   try {
     await connectPostgres();
     await sequelize.sync({ alter: true });
     console.log('✅ PostgreSQL models synced.');
-
-    app.use('/api/dashboard', require('./routes/dashboardRoutes'));
-
-    // Non-fatal: the rest of the API still serves if the model worker is down.
-    await diseaseModel.load();
-
-    app.listen(PORT, () => {
-      console.log(`🚀 Vertex Backend running on port ${PORT}`);
-    });
   } catch (error) {
     console.error('⚠️  PostgreSQL unavailable, continuing without it:', error.message);
   }
 
-  // Connect to MongoDB (non-fatal)
   try {
     await connectMongo();
   } catch (error) {
     console.error('⚠️  MongoDB unavailable, continuing without it:', error.message);
   }
 
-  // Connect to Redis (non-fatal)
   try {
     await connectRedis();
   } catch (error) {
     console.error('⚠️  Redis unavailable, continuing without it:', error.message);
   }
 
+  // Mounted here rather than inside the Postgres block so the dashboard still
+  // responds when Postgres is down.
+  app.use('/api/dashboard', require('./routes/dashboardRoutes'));
+
+  await diseaseModel.load();
+
   app.listen(PORT, () => {
-    console.log(`🚀 HarvestHub Backend running on port ${PORT}`);
+    console.log(`🚀 Vertex Backend running on port ${PORT}`);
   });
 };
 

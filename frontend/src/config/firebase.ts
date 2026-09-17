@@ -4,9 +4,12 @@ import { getAnalytics } from "firebase/analytics";
 
 const firebaseConfig = {
     apiKey: "AIzaSyBZfTeo7qZeQiL-1VWXdchC6Gtf3ho-7TI",
-    authDomain: "Vertex.firebaseapp.com",
-    projectId: "Vertex",
-    storageBucket: "Vertex.firebasestorage.app",
+    // These are Firebase infrastructure identifiers, not product branding.
+    // They must match the project the apiKey belongs to - renaming them to
+    // "Vertex" breaks authentication outright.
+    authDomain: "agrolyft.firebaseapp.com",
+    projectId: "agrolyft",
+    storageBucket: "agrolyft.firebasestorage.app",
     messagingSenderId: "504889344388",
     appId: "1:504889344388:web:cac7df17ab76f0fbd09dd1",
     measurementId: "G-PEMK08NEJC"
