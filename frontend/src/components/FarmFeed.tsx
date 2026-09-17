@@ -5,12 +5,14 @@ import { Textarea } from './ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Heart, MessageCircle, Upload, Loader2, MapPin, Send, AlertCircle } from 'lucide-react';
 import api from '../services/api';
+import { useTranslation } from '../i18n';
 
 interface FarmFeedProps {
   user: any;
 }
 
 export function FarmFeed({ user }: FarmFeedProps) {
+  const { t } = useTranslation();
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [newPostContent, setNewPostContent] = useState('');
@@ -51,7 +53,7 @@ export function FarmFeed({ user }: FarmFeedProps) {
 
     // The post model requires caption text even when a photo is attached.
     if (selectedFile && !newPostContent.trim()) {
-      setPostError('Please add a short caption for your photo before posting.');
+      setPostError(t('feed.needCaption'));
       return;
     }
 
@@ -74,7 +76,7 @@ export function FarmFeed({ user }: FarmFeedProps) {
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (error) {
       console.error('Failed to create post:', error);
-      setPostError('Could not publish your post. Please try again.');
+      setPostError(t('feed.error'));
     } finally {
       setLoading(false);
     }
@@ -122,8 +124,8 @@ export function FarmFeed({ user }: FarmFeedProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-green-900">FarmFeed 🌾</h1>
-        <p className="text-green-700 mt-1">Connect with farmers, share your journey</p>
+        <h1 className="text-3xl font-bold text-green-900">{t('feed.title')} 🌾</h1>
+        <p className="text-green-700 mt-1">{t('feed.subtitle')}</p>
       </div>
 
       <Card>
@@ -137,7 +139,7 @@ export function FarmFeed({ user }: FarmFeedProps) {
             </Avatar>
             <div className="flex-1 space-y-3">
               <Textarea
-                placeholder="Share your farming experience..."
+                placeholder={t('feed.placeholder')}
                 value={newPostContent}
                 onChange={(e) => setNewPostContent(e.target.value)}
                 className="min-h-20 resize-none"
@@ -160,11 +162,11 @@ export function FarmFeed({ user }: FarmFeedProps) {
               )}
               <div className="flex items-center justify-between">
                 <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-                  <Upload className="h-4 w-4 mr-2" /> Add Photo
+                  <Upload className="h-4 w-4 mr-2" /> {t('feed.addPhoto')}
                 </Button>
                 <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
                 <Button onClick={handleCreatePost} disabled={loading || (!newPostContent.trim() && !selectedFile)}>
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Post'}
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : t('feed.post')}
                 </Button>
               </div>
             </div>
@@ -233,7 +235,7 @@ export function FarmFeed({ user }: FarmFeedProps) {
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="Write a comment..."
+                      placeholder={t('feed.comment')}
                       value={commentText[post._id] || ''}
                       onChange={(e) => setCommentText(prev => ({ ...prev, [post._id]: e.target.value }))}
                       onKeyPress={(e) => e.key === 'Enter' && handleComment(post._id)}
@@ -247,7 +249,7 @@ export function FarmFeed({ user }: FarmFeedProps) {
           </Card>
         ))}
         {posts.length === 0 && (
-          <div className="py-12 text-center text-gray-500">No posts yet. Share your journey!</div>
+          <div className="py-12 text-center text-gray-500">{t('feed.empty')}</div>
         )}
       </div>
     </div>

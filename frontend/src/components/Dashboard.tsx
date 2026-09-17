@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card';
-import { TrendingUp, TrendingDown, Leaf, Calendar, AlertCircle, Users, Cloud, Droplets, Wind, MapPin } from 'lucide-react';
+import {
+  TrendingUp, TrendingDown, Leaf, Calendar, AlertCircle, Users, Cloud,
+  Droplets, Wind, MapPin, Ruler, CheckCircle2
+} from 'lucide-react';
 import api from '../services/api';
+import { useTranslation } from '../i18n';
 
 interface DashboardProps {
   user: any;
@@ -16,10 +20,13 @@ const FALLBACK_CITIES = [
 ];
 
 export function Dashboard({ user }: DashboardProps) {
+  const { t } = useTranslation();
   const [weather, setWeather] = useState<any>(null);
   const [loadingWeather, setLoadingWeather] = useState(false);
   const [weatherError, setWeatherError] = useState<string | null>(null);
   const [needsManualLocation, setNeedsManualLocation] = useState(false);
+  const [stats, setStats] = useState<any>(null);
+  const [prices, setPrices] = useState<any[]>([]);
 
   const fetchWeather = async (lat: number, lon: number) => {
     setLoadingWeather(true);
@@ -30,22 +37,26 @@ export function Dashboard({ user }: DashboardProps) {
       setNeedsManualLocation(false);
     } catch (error) {
       console.error('Failed to fetch weather:', error);
-      setWeatherError('Could not load weather for this location.');
+      setWeatherError(t('dash.weatherFail'));
     } finally {
       setLoadingWeather(false);
     }
   };
 
   useEffect(() => {
+    api.get('/stats/dashboard').then((r) => setStats(r.data)).catch(() => setStats(null));
+    api.get('/market/prices')
+      .then((r) => setPrices((r.data.prices || []).filter((p: any) => !p.unavailable).slice(0, 4)))
+      .catch(() => setPrices([]));
+  }, []);
+
+  useEffect(() => {
     if (!navigator.geolocation) {
       setNeedsManualLocation(true);
       return;
     }
-
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        fetchWeather(position.coords.latitude, position.coords.longitude);
-      },
+      (position) => fetchWeather(position.coords.latitude, position.coords.longitude),
       (error) => {
         console.error('Geolocation error:', error);
         setNeedsManualLocation(true);
@@ -54,13 +65,13 @@ export function Dashboard({ user }: DashboardProps) {
   }, []);
 
   const userName = user?.name || user?.email?.split('@')[0] || 'Farmer';
-  const locationText = user?.location || 'Location not set';
+  const locationText = user?.location || t('dash.noLocation');
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-green-900">Welcome back, {userName}! 🌾</h1>
+          <h1 className="text-3xl font-bold text-green-900">{t('dash.welcome')}, {userName}! 🌾</h1>
           <p className="text-green-700 mt-1 flex items-center gap-2">
             <MapPin className="h-4 w-4" /> {locationText}
           </p>
@@ -88,15 +99,13 @@ export function Dashboard({ user }: DashboardProps) {
 
         {loadingWeather && !weather && (
           <div className="bg-white p-4 rounded-xl shadow-sm border text-sm text-gray-500">
-            Loading weather...
+            {t('dash.weatherLoading')}
           </div>
         )}
 
         {!weather && !loadingWeather && (needsManualLocation || weatherError) && (
           <div className="bg-white p-4 rounded-xl shadow-sm border max-w-sm">
-            <p className="text-sm text-gray-600 mb-2">
-              {weatherError || "Couldn't access your location. Pick a city for a weather estimate:"}
-            </p>
+            <p className="text-sm text-gray-600 mb-2">{weatherError || t('dash.weatherPick')}</p>
             <div className="flex flex-wrap gap-2">
               {FALLBACK_CITIES.map((city) => (
                 <button
@@ -114,123 +123,125 @@ export function Dashboard({ user }: DashboardProps) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
-          <CardHeader className="pb-3 flex-row items-center justify-between space-y-0"><CardTitle className="text-sm font-medium text-gray-600">Active Crops</CardTitle><SampleBadge /></CardHeader>
+          <CardHeader className="pb-3"><CardTitle className="text-sm font-medium text-gray-600">{t('dash.activeCrops')}</CardTitle></CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between"><div className="text-3xl font-bold text-green-900">3</div><Leaf className="h-8 w-8 text-green-600" /></div>
-            <p className="text-xs text-gray-500 mt-2">Rice, Wheat, Tomato</p>
+            <div className="flex items-center justify-between">
+              <div className="text-3xl font-bold text-green-900">{stats?.activeCrops.count ?? '—'}</div>
+              <Leaf className="h-8 w-8 text-green-600" />
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              {stats?.activeCrops.names?.length ? stats.activeCrops.names.join(', ') : t('dash.noCrops')}
+            </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-3 flex-row items-center justify-between space-y-0"><CardTitle className="text-sm font-medium text-gray-600">Expected Profit</CardTitle><SampleBadge /></CardHeader>
+          <CardHeader className="pb-3"><CardTitle className="text-sm font-medium text-gray-600">{t('common.acres')}</CardTitle></CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between"><div className="text-3xl font-bold text-green-900">₹1.2L</div><TrendingUp className="h-8 w-8 text-green-600" /></div>
-            <p className="text-xs text-green-600 mt-2 flex items-center"><TrendingUp className="h-3 w-3 mr-1" /> +12.5% from last season</p>
+            <div className="flex items-center justify-between">
+              <div className="text-3xl font-bold text-green-900">{stats?.land.totalAcres ?? '—'}</div>
+              <Ruler className="h-8 w-8 text-green-600" />
+            </div>
+            <p className="text-xs text-gray-500 mt-2">{t('dash.upcomingTasksSub')}</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-3 flex-row items-center justify-between space-y-0"><CardTitle className="text-sm font-medium text-gray-600">Tasks This Week</CardTitle><SampleBadge /></CardHeader>
+          <CardHeader className="pb-3"><CardTitle className="text-sm font-medium text-gray-600">{t('dash.tasksWeek')}</CardTitle></CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between"><div className="text-3xl font-bold text-orange-900">5</div><Calendar className="h-8 w-8 text-orange-600" /></div>
-            <p className="text-xs text-gray-500 mt-2">2 pending, 3 upcoming</p>
+            <div className="flex items-center justify-between">
+              <div className="text-3xl font-bold text-orange-900">{stats?.tasks.dueThisWeek ?? '—'}</div>
+              <Calendar className="h-8 w-8 text-orange-600" />
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              {stats ? `${stats.tasks.pendingTotal} ${t('dash.pending')}` : ''}
+            </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-3 flex-row items-center justify-between space-y-0"><CardTitle className="text-sm font-medium text-gray-600">Community</CardTitle><SampleBadge /></CardHeader>
+          <CardHeader className="pb-3"><CardTitle className="text-sm font-medium text-gray-600">{t('dash.community')}</CardTitle></CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between"><div className="text-3xl font-bold text-blue-900">127</div><Users className="h-8 w-8 text-blue-600" /></div>
-            <p className="text-xs text-gray-500 mt-2">Farmers connected</p>
+            <div className="flex items-center justify-between">
+              <div className="text-3xl font-bold text-blue-900">{stats?.community.farmers ?? '—'}</div>
+              <Users className="h-8 w-8 text-blue-600" />
+            </div>
+            <p className="text-xs text-gray-500 mt-2">{t('dash.farmersConnected')}</p>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
-          <CardHeader className="flex-row items-center justify-between space-y-0">
-            <div>
-              <CardTitle>Upcoming Tasks</CardTitle>
-              <CardDescription>Stay on track with your crop roadmap</CardDescription>
-            </div>
-            <SampleBadge />
+          <CardHeader>
+            <CardTitle>{t('dash.upcomingTasks')}</CardTitle>
+            <CardDescription>{t('dash.upcomingTasksSub')}</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <TaskItem color="green" title="Fertilizer Application - Rice" desc="Apply urea 25kg/acre" due="2 days" />
-              <TaskItem color="blue" title="Irrigation - Wheat" desc="Light irrigation required" due="4 days" />
-              <TaskItem color="purple" title="Staking - Tomato" desc="Provide bamboo stakes" due="5 days" />
-            </div>
+            {stats?.tasks.upcoming?.length ? (
+              <div className="space-y-4">
+                {stats.tasks.upcoming.map((task: any) => (
+                  <div key={task.taskId} className="flex items-start gap-3 p-3 rounded-lg bg-green-50">
+                    <div className={`w-2 h-2 rounded-full mt-2 ${task.daysUntil < 0 ? 'bg-red-500' : 'bg-green-600'}`} />
+                    <div className="flex-1">
+                      <p className="font-medium text-green-900">{task.task} — {task.crop}</p>
+                      <p className="text-sm opacity-80">{task.description}</p>
+                      <p className="text-xs mt-1 opacity-70">
+                        {task.daysUntil < 0
+                          ? `${Math.abs(task.daysUntil)} ${t('dash.days')} overdue`
+                          : `${t('dash.dueIn')} ${task.daysUntil} ${t('dash.days')}`}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-start gap-2 text-sm text-gray-500 py-6">
+                <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <p>{t('dash.noTasks')}</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex-row items-center justify-between space-y-0">
             <div>
-              <CardTitle>Market Insights</CardTitle>
-              <CardDescription>Current crop prices in your region</CardDescription>
+              <CardTitle>{t('dash.marketInsights')}</CardTitle>
+              <CardDescription>{t('dash.marketSub')}</CardDescription>
             </div>
-            <SampleBadge />
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <MarketItem name="Rice" price="₹2,100/q" change="+5.2%" up />
-              <MarketItem name="Wheat" price="₹2,050/q" change="+3.1%" up />
-              <MarketItem name="Tomato" price="₹1,200/q" change="+12.5%" up />
-              <MarketItem name="Cotton" price="₹5,800/q" change="-2.3%" />
+              {prices.map((p: any) => (
+                <div key={p.crop} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <p className="font-medium text-gray-900">{p.crop}</p>
+                    <p className="text-sm text-gray-600">₹{p.avgModalPrice.toLocaleString()} / {t('market.perQuintalShort')}</p>
+                  </div>
+                  <div className={`flex items-center ${p.trend === 'up' ? 'text-green-600' : p.trend === 'down' ? 'text-red-600' : 'text-gray-500'}`}>
+                    {p.trend === 'up' ? <TrendingUp className="h-4 w-4 mr-1" /> : p.trend === 'down' ? <TrendingDown className="h-4 w-4 mr-1" /> : null}
+                    <span className="text-sm font-medium">
+                      {p.change !== null ? `${p.change > 0 ? '+' : ''}${p.change}%` : '—'}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
       </div>
 
       <Card className="border-l-4 border-l-amber-500">
-        <CardHeader><CardTitle className="flex items-center gap-2"><AlertCircle className="h-5 w-5 text-amber-600" /> Quick Tips</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="flex items-center gap-2"><AlertCircle className="h-5 w-5 text-amber-600" /> {t('dash.quickTips')}</CardTitle></CardHeader>
         <CardContent>
           <ul className="space-y-2 text-gray-700">
-            <TipItem tip="Monitor weather forecasts daily - heavy rain expected this week" />
-            <TipItem tip="Early blight season is approaching - inspect tomato plants regularly" />
-            <TipItem tip="Rice market prices are rising - consider holding stock for better rates" />
+            <TipItem tip="Check leaf undersides weekly — most pest and disease problems show there first." />
+            <TipItem tip="Water at the base of plants early in the day to limit fungal spread." />
+            <TipItem tip="Keep a field diary of sowing, spraying and harvest dates for next season." />
           </ul>
         </CardContent>
       </Card>
-    </div>
-  );
-}
-
-function SampleBadge() {
-  return (
-    <span className="text-[10px] font-medium uppercase tracking-wide text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full whitespace-nowrap">
-      Sample data
-    </span>
-  );
-}
-
-function TaskItem({ color, title, desc, due }: any) {
-  const colorMap: any = {
-    green: 'bg-green-50 text-green-900 border-green-600',
-    blue: 'bg-blue-50 text-blue-900 border-blue-600',
-    purple: 'bg-purple-50 text-purple-900 border-purple-600',
-  };
-  return (
-    <div className={`flex items-start gap-3 p-3 rounded-lg ${colorMap[color].split(' ')[0]}`}>
-      <div className={`w-2 h-2 rounded-full mt-2 ${colorMap[color].split(' ')[2].replace('border-', 'bg-')}`}></div>
-      <div className="flex-1">
-        <p className={`font-medium ${colorMap[color].split(' ')[1]}`}>{title}</p>
-        <p className="text-sm opacity-80">{desc}</p>
-        <p className="text-xs mt-1 opacity-70">Due in {due}</p>
-      </div>
-    </div>
-  );
-}
-
-function MarketItem({ name, price, change, up }: any) {
-  return (
-    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-      <div><p className="font-medium text-gray-900">{name}</p><p className="text-sm text-gray-600">{price}</p></div>
-      <div className={`flex items-center ${up ? 'text-green-600' : 'text-red-600'}`}>
-        {up ? <TrendingUp className="h-4 w-4 mr-1" /> : <TrendingDown className="h-4 w-4 mr-1" />}
-        <span className="text-sm font-medium">{change}</span>
-      </div>
     </div>
   );
 }

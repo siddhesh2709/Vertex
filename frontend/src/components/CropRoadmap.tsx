@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -6,8 +6,22 @@ import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Loader2, CheckCircle2, Circle, Calendar, AlertCircle } from 'lucide-react';
 import api from '../services/api';
+import { useTranslation } from '../i18n';
 
-export function CropRoadmap() {
+const ROADMAP_CROPS = ['Rice', 'Wheat', 'Tomato', 'Cotton', 'Potato', 'Maize', 'Sugarcane'];
+
+// Advisor crops carry qualifiers like "Rice (Paddy)"; the roadmap keys on the bare name.
+function normalizeCropName(name: string): string {
+  const base = name.replace(/\s*\(.*?\)\s*/g, '').trim();
+  return ROADMAP_CROPS.find((c) => c.toLowerCase() === base.toLowerCase()) ?? base;
+}
+
+interface CropRoadmapProps {
+  prefill?: { cropName: string; landArea: string } | null;
+}
+
+export function CropRoadmap({ prefill }: CropRoadmapProps) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [roadmap, setRoadmap] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -16,6 +30,15 @@ export function CropRoadmap() {
     landArea: '',
     startDate: new Date().toISOString().split('T')[0]
   });
+
+  useEffect(() => {
+    if (!prefill) return;
+    setFormData((prev) => ({
+      ...prev,
+      cropName: normalizeCropName(prefill.cropName),
+      landArea: prefill.landArea || prev.landArea
+    }));
+  }, [prefill]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,51 +50,58 @@ export function CropRoadmap() {
       setRoadmap(response.data.roadmap);
     } catch (err) {
       console.error('Failed to generate roadmap:', err);
-      setError('Could not generate a roadmap right now. Please try again.');
+      setError(t('roadmap.error'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleTask = async (taskId: string) => {
+    if (!roadmap?._id) return;
+    try {
+      const response = await api.patch(`/roadmap/${roadmap._id}/tasks/${taskId}`);
+      setRoadmap(response.data.roadmap);
+    } catch (err) {
+      console.error('Failed to update task:', err);
+      setError(t('roadmap.error'));
     }
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-green-900">Smart Crop Roadmap 📆</h1>
-        <p className="text-green-700 mt-1">Get a week-by-week plan for your crop cultivation</p>
+        <h1 className="text-3xl font-bold text-green-900">{t('roadmap.title')} 📆</h1>
+        <p className="text-green-700 mt-1">{t('roadmap.subtitle')}</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Select Your Crop</CardTitle>
-          <CardDescription>Generate a customized farming schedule</CardDescription>
+          <CardTitle>{t('roadmap.formTitle')}</CardTitle>
+          <CardDescription>{t('roadmap.formSub')}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="cropName">Crop Name</Label>
+                <Label htmlFor="cropName">{t('roadmap.cropName')}</Label>
                 <Select
                   value={formData.cropName}
                   onValueChange={(value) => setFormData({ ...formData, cropName: value })}
                   required
                 >
                   <SelectTrigger id="cropName">
-                    <SelectValue placeholder="Select crop" />
+                    <SelectValue placeholder={t('roadmap.selectCrop')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Rice">Rice</SelectItem>
-                    <SelectItem value="Wheat">Wheat</SelectItem>
-                    <SelectItem value="Tomato">Tomato</SelectItem>
-                    <SelectItem value="Cotton">Cotton</SelectItem>
-                    <SelectItem value="Potato">Potato</SelectItem>
-                    <SelectItem value="Maize">Maize</SelectItem>
-                    <SelectItem value="Sugarcane">Sugarcane</SelectItem>
+                    {ROADMAP_CROPS.map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="landArea">Land Area (acres)</Label>
+                <Label htmlFor="landArea">{t('advisor.landArea')}</Label>
                 <Input
                   id="landArea"
                   type="number"
@@ -84,7 +114,7 @@ export function CropRoadmap() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="startDate">Start Date</Label>
+                <Label htmlFor="startDate">{t('roadmap.startDate')}</Label>
                 <Input
                   id="startDate"
                   type="date"
@@ -99,10 +129,10 @@ export function CropRoadmap() {
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating Roadmap...
+                  {t('roadmap.generating')}
                 </>
               ) : (
-                'Generate Roadmap'
+                t('roadmap.submit')
               )}
             </Button>
           </form>
@@ -121,20 +151,20 @@ export function CropRoadmap() {
           {roadmap.usedFallbackTemplate && (
             <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-900 rounded-lg p-3 text-sm">
               <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-              <p>We don't have a dedicated template for {roadmap.cropName} yet — showing a generic schedule instead.</p>
+              <p>{t('roadmap.fallback')}</p>
             </div>
           )}
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-green-900">
-                {roadmap.cropName} Cultivation Roadmap
+                {roadmap.cropName} — {t('roadmap.heading')}
               </h2>
               <p className="text-green-700 mt-1">
-                {roadmap.landArea} acres • {roadmap.totalWeeks} weeks duration
+                {roadmap.landArea} {t('common.acres')} • {roadmap.totalWeeks} {t('roadmap.weeksDuration')}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-sm text-gray-600">Start Date</p>
+              <p className="text-sm text-gray-600">{t('roadmap.startDate')}</p>
               <p className="font-semibold text-gray-900">
                 {new Date(roadmap.startDate).toLocaleDateString('en-IN', {
                   day: 'numeric',
@@ -157,22 +187,31 @@ export function CropRoadmap() {
                   <div className="flex flex-col items-center">
                     <div className="relative z-10 flex items-center justify-center w-16 h-16 bg-white border-2 border-green-600 rounded-full">
                       <div className="text-center">
-                        <div className="text-xs text-gray-600">Week</div>
+                        <div className="text-xs text-gray-600">{t('common.week')}</div>
                         <div className="text-lg font-bold text-green-900">{task.week}</div>
                       </div>
                     </div>
                   </div>
 
                   {/* Task card */}
-                  <Card className="flex-1 hover:shadow-md transition-shadow">
+                  <Card className={`flex-1 hover:shadow-md transition-shadow ${task.status === 'completed' ? 'bg-green-50/60' : ''}`}>
                     <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className="font-bold text-lg text-gray-900">{task.task}</h3>
-                        {task.status === 'completed' ? (
-                          <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
-                        ) : (
-                          <Circle className="h-5 w-5 text-gray-400 flex-shrink-0" />
-                        )}
+                      <div className="flex items-start justify-between mb-2 gap-3">
+                        <h3 className={`font-bold text-lg ${task.status === 'completed' ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+                          {task.task}
+                        </h3>
+                        <button
+                          type="button"
+                          onClick={() => toggleTask(task._id)}
+                          title={task.status === 'completed' ? t('roadmap.done') : t('roadmap.markDone')}
+                          className="flex-shrink-0 hover:scale-110 transition-transform"
+                        >
+                          {task.status === 'completed' ? (
+                            <CheckCircle2 className="h-5 w-5 text-green-600" />
+                          ) : (
+                            <Circle className="h-5 w-5 text-gray-400 hover:text-green-600" />
+                          )}
+                        </button>
                       </div>
                       <p className="text-gray-700 text-sm mb-3">{task.description}</p>
                       <div className="flex items-center gap-2 text-xs text-gray-500">
@@ -198,8 +237,7 @@ export function CropRoadmap() {
           <Card className="bg-amber-50 border-amber-200">
             <CardContent className="pt-6">
               <p className="text-sm text-amber-900">
-                ⏰ <strong>Reminder:</strong> Set up notifications for upcoming tasks to stay on track. 
-                Weather conditions and pest pressure may require adjusting this schedule.
+                ⏰ <strong>{t('roadmap.reminder')}</strong> {t('roadmap.reminderText')}
               </p>
             </CardContent>
           </Card>

@@ -1,3 +1,5 @@
+const Roadmap = require('../models/mongo/Roadmap');
+
 // Ported from the former Supabase edge function (frontend/src/supabase/functions/server/index.tsx)
 // so the roadmap works with the same Firebase auth the rest of the app already uses.
 const ROADMAP_TEMPLATES = {
@@ -80,27 +82,84 @@ const ROADMAP_TEMPLATES = {
     ]
 };
 
-const generateRoadmap = (req, res) => {
-    const { cropName, landArea, startDate } = req.body;
+const generateRoadmap = async (req, res) => {
+    try {
+        const { cropName, landArea, startDate } = req.body;
 
-    if (!cropName || !landArea || !startDate) {
-        return res.status(400).json({ error: 'cropName, landArea and startDate are required' });
+        if (!cropName || !landArea || !startDate) {
+            return res.status(400).json({ error: 'cropName, landArea and startDate are required' });
+        }
+
+        const template = ROADMAP_TEMPLATES[cropName];
+        const usedFallback = !template;
+        const tasks = template || ROADMAP_TEMPLATES['Tomato'];
+
+        // One saved roadmap per crop per user; regenerating replaces the old one.
+        const saved = await Roadmap.findOneAndUpdate(
+            { userId: req.user.uid, cropName },
+            {
+                userId: req.user.uid,
+                cropName,
+                landArea,
+                startDate,
+                totalWeeks: tasks[tasks.length - 1].week,
+                tasks: tasks.map((t) => ({ ...t, status: 'pending' }))
+            },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+
+        res.json({
+            roadmap: {
+                _id: saved._id,
+                cropName: saved.cropName,
+                landArea: saved.landArea,
+                startDate: saved.startDate,
+                totalWeeks: saved.totalWeeks,
+                tasks: saved.tasks,
+                usedFallbackTemplate: usedFallback
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
     }
-
-    const template = ROADMAP_TEMPLATES[cropName];
-    const usedFallback = !template;
-    const tasks = template || ROADMAP_TEMPLATES['Tomato'];
-
-    const roadmap = {
-        cropName,
-        landArea,
-        startDate,
-        totalWeeks: tasks[tasks.length - 1].week,
-        tasks,
-        usedFallbackTemplate: usedFallback
-    };
-
-    res.json({ roadmap });
 };
 
-module.exports = { generateRoadmap };
+const getMyRoadmaps = async (req, res) => {
+    try {
+        const roadmaps = await Roadmap.find({ userId: req.user.uid }).sort({ createdAt: -1 });
+        res.json(roadmaps);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+const toggleTask = async (req, res) => {
+    try {
+        const { id, taskId } = req.params;
+        const roadmap = await Roadmap.findOne({ _id: id, userId: req.user.uid });
+        if (!roadmap) return res.status(404).json({ error: 'Roadmap not found' });
+
+        const task = roadmap.tasks.id(taskId);
+        if (!task) return res.status(404).json({ error: 'Task not found' });
+
+        task.status = task.status === 'completed' ? 'pending' : 'completed';
+        task.completedAt = task.status === 'completed' ? new Date() : undefined;
+        await roadmap.save();
+
+        res.json({ roadmap });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+const deleteRoadmap = async (req, res) => {
+    try {
+        const deleted = await Roadmap.findOneAndDelete({ _id: req.params.id, userId: req.user.uid });
+        if (!deleted) return res.status(404).json({ error: 'Roadmap not found' });
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+module.exports = { generateRoadmap, getMyRoadmaps, toggleTask, deleteRoadmap };

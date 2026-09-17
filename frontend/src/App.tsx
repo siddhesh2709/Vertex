@@ -24,15 +24,25 @@ import {
   X
 } from 'lucide-react';
 import { Toaster } from './components/ui/sonner';
+import { useTranslation, LANGUAGES } from './i18n';
+import { LanguageSelect } from './components/LanguageSelect';
 
 type View = 'dashboard' | 'crop-recommendation' | 'crop-roadmap' | 'disease-detection' | 'farm-feed' | 'market-analytics';
 
 export default function App() {
+  const { t } = useTranslation();
   const [user, setUser] = useState<any>(null);
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState<string>('');
+  // Carries a crop chosen in Crop Advisor over to the Roadmap screen.
+  const [roadmapPrefill, setRoadmapPrefill] = useState<{ cropName: string; landArea: string } | null>(null);
+
+  const sendCropToRoadmap = (cropName: string, landArea: string) => {
+    setRoadmapPrefill({ cropName, landArea });
+    setCurrentView('crop-roadmap');
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -73,12 +83,12 @@ export default function App() {
   };
 
   const navigationItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'crop-recommendation', label: 'Crop Advisor', icon: Leaf },
-    { id: 'crop-roadmap', label: 'Crop Roadmap', icon: Calendar },
-    { id: 'disease-detection', label: 'Disease Detection', icon: Microscope },
-    { id: 'farm-feed', label: 'FarmFeed', icon: Users },
-    { id: 'market-analytics', label: 'Market Analytics', icon: TrendingUp },
+    { id: 'dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
+    { id: 'crop-recommendation', label: t('nav.advisor'), icon: Leaf },
+    { id: 'crop-roadmap', label: t('nav.roadmap'), icon: Calendar },
+    { id: 'disease-detection', label: t('nav.disease'), icon: Microscope },
+    { id: 'farm-feed', label: t('nav.feed'), icon: Users },
+    { id: 'market-analytics', label: t('nav.market'), icon: TrendingUp },
   ];
 
   if (loading) {
@@ -88,7 +98,7 @@ export default function App() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-green-600 text-white rounded-full mb-4 animate-pulse">
             <Sprout className="w-8 h-8" />
           </div>
-          <p className="text-green-700">Loading AgroLyft...</p>
+          <p className="text-green-700">{t('app.loading')}</p>
         </div>
       </div>
     );
@@ -117,19 +127,20 @@ export default function App() {
                 <Sprout className="w-6 h-6" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-green-900">AgroLyft</h1>
-                <p className="text-xs text-green-700 hidden sm:block">Smart Farming, Elevated Growth</p>
+                <h1 className="text-xl font-bold text-green-900">Vertex</h1>
+                <p className="text-xs text-green-700 hidden sm:block">{t('app.tagline')}</p>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <LanguageSelect />
             {user.photoURL && (
               <img src={user.photoURL} alt={user.name} className="w-8 h-8 rounded-full border hidden sm:block" />
             )}
             <Button variant="outline" onClick={handleLogout} size="sm">
               <LogOut className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">Logout</span>
+              <span className="hidden sm:inline">{t('nav.logout')}</span>
             </Button>
           </div>
         </div>
@@ -189,8 +200,8 @@ export default function App() {
         <main className="flex-1 p-4 lg:p-8">
           <div className="max-w-7xl mx-auto">
             {currentView === 'dashboard' && <Dashboard user={user} />}
-            {currentView === 'crop-recommendation' && <CropRecommendation />}
-            {currentView === 'crop-roadmap' && <CropRoadmap />}
+            {currentView === 'crop-recommendation' && <CropRecommendation onAddToRoadmap={sendCropToRoadmap} />}
+            {currentView === 'crop-roadmap' && <CropRoadmap prefill={roadmapPrefill} />}
             {currentView === 'disease-detection' && <DiseaseDetection />}
             {currentView === 'farm-feed' && <FarmFeed user={user} />}
             {currentView === 'market-analytics' && <MarketAnalytics />}
