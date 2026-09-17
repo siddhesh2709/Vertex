@@ -1,6 +1,6 @@
-# AgroLyft - Smart Farming, Elevated Growth
+# Vertex - Smart Farming, Elevated Growth
 
-AgroLyft is a comprehensive full-stack platform designed to empower farmers with data-driven insights, community connection, and smart resource management.
+Vertex is a comprehensive full-stack platform designed to empower farmers with data-driven insights, community connection, and smart resource management.
 
 ## 🏗️ Architecture
 

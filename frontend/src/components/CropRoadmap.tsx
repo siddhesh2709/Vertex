@@ -1,38 +1,197 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Loader2, CheckCircle2, Circle, Calendar, AlertCircle } from 'lucide-react';
+import { Loader2, CheckCircle2, Circle, Calendar } from 'lucide-react';
 import api from '../services/api';
 
-export function CropRoadmap() {
+interface CropRoadmapProps {
+  accessToken: string;
+}
+
+export function CropRoadmap(_props: CropRoadmapProps) {
   const [loading, setLoading] = useState(false);
   const [roadmap, setRoadmap] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     cropName: '',
     landArea: '',
     startDate: new Date().toISOString().split('T')[0]
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
+  const [loadingSaved, setLoadingSaved] = useState(true);
+  const [updatingTask, setUpdatingTask] = useState<string | null>(null);
+  const taskUpdateInFlight = useRef(false);
+
+  const toggleTask = async (task: any) => {
+    if (!roadmap?._id || !task._id || taskUpdateInFlight.current || loading || loadingSaved) return;
+
+    const cultivationId = roadmap._id;
+    taskUpdateInFlight.current = true;
+    setUpdatingTask(task._id);
 
     try {
-      const response = await api.post('/roadmap/generate', formData);
-      setRoadmap(response.data.roadmap);
-    } catch (err) {
-      console.error('Failed to generate roadmap:', err);
-      setError('Could not generate a roadmap right now. Please try again.');
+      const response = await api.patch(
+        `/cultivations/${cultivationId}/tasks/${task._id}`,
+        { status: task.status === 'completed' ? 'pending' : 'completed' },
+        { timeout: 15000 }
+      );
+
+      const updatedTask = response.data.task;
+
+      setRoadmap((current: any) => {
+        if (current?._id !== cultivationId) return current;
+
+        return {
+          ...current,
+          tasks: current.tasks.map((item: any) =>
+            item._id === updatedTask._id
+              ? { ...item, status: updatedTask.status, completedAt: updatedTask.completedAt }
+              : item
+          )
+        };
+      });
+    } catch (error: any) {
+      console.error('Update task error:', error);
+      alert(
+        error.response?.data?.error ||
+        'Could not confirm the update. Refresh to check before retrying.'
+      );
+    } finally {
+      taskUpdateInFlight.current = false;
+      setUpdatingTask(null);
+    }
+  };
+
+  useEffect(() => {
+    let active = true;
+
+    const loadSavedRoadmap = async () => {
+      try {
+        const response = await api.get('/cultivations/latest', {
+          timeout: 15000
+        });
+
+        if (!active) return;
+
+        const savedPlan = response.data.cultivation;
+
+        // A new account may not have any cultivation plans yet.
+        if (!savedPlan) return;
+
+        const startTime = new Date(savedPlan.startDate).getTime();
+
+        const tasks = savedPlan.tasks.map((task: any) => ({
+          ...task,
+          task: task.title,
+          week:
+            Math.round(
+              (new Date(task.dueDate).getTime() - startTime) /
+                (7 * 24 * 60 * 60 * 1000)
+            ) + 1
+        }));
+
+        setRoadmap({
+          ...savedPlan,
+          cropName: savedPlan.crop?.name || 'Previously selected crop',
+          landArea: savedPlan.areaAcres,
+          totalWeeks: Math.max(1, ...tasks.map((task: any) => task.week)),
+          tasks
+        });
+      } catch (error: any) {
+        if (active) {
+          console.error('Load roadmap error:', error);
+          alert(
+            error.response?.data?.error ||
+            'Could not load your saved roadmap. Please refresh to retry.'
+          );
+        }
+      } finally {
+        if (active) setLoadingSaved(false);
+      }
+    };
+
+    loadSavedRoadmap();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (loading || loadingSaved || taskUpdateInFlight.current) return;
+    setLoading(true);
+
+    try {
+      // Find the database ID for the selected crop.
+      const cropsResponse = await api.get('/crops/all', {
+        timeout: 15000
+      });
+
+      const cropName =
+        formData.cropName === 'Rice'
+          ? 'Rice (Paddy)'
+          : formData.cropName;
+
+      const selectedCrop = cropsResponse.data.find(
+        (crop: any) => crop.name === cropName
+      );
+
+      if (!selectedCrop) {
+        throw new Error(
+          'This crop is not available yet. Select Rice, Wheat, Tomato, or Cotton.'
+        );
+      }
+
+      // The API client automatically attaches the Firebase login token.
+      const response = await api.post(
+        '/cultivations',
+        {
+          cropId: selectedCrop._id,
+          areaAcres: Number(formData.landArea),
+          startDate: formData.startDate
+        },
+        { timeout: 15000 }
+      );
+
+      const savedPlan = response.data.cultivation;
+
+      // Adapt saved tasks to the existing timeline display.
+      const startTime = new Date(savedPlan.startDate).getTime();
+
+      const tasks = savedPlan.tasks.map((task: any) => ({
+        ...task,
+        task: task.title,
+        week:
+          Math.round(
+            (new Date(task.dueDate).getTime() - startTime) /
+              (7 * 24 * 60 * 60 * 1000)
+          ) + 1
+      }));
+
+      setRoadmap({
+        ...savedPlan,
+        cropName: savedPlan.crop.name,
+        landArea: savedPlan.areaAcres,
+        totalWeeks: Math.max(1, ...tasks.map((task: any) => task.week)),
+        tasks
+      });
+    } catch (error: any) {
+      console.error('Failed to save roadmap:', error);
+
+      const message =
+        error.response?.data?.error ||
+        error.message ||
+        'Could not save the roadmap. Please try again.';
+
+      alert(message);
     } finally {
       setLoading(false);
     }
   };
-
+ 
   return (
     <div className="space-y-6">
       <div>
@@ -63,9 +222,6 @@ export function CropRoadmap() {
                     <SelectItem value="Wheat">Wheat</SelectItem>
                     <SelectItem value="Tomato">Tomato</SelectItem>
                     <SelectItem value="Cotton">Cotton</SelectItem>
-                    <SelectItem value="Potato">Potato</SelectItem>
-                    <SelectItem value="Maize">Maize</SelectItem>
-                    <SelectItem value="Sugarcane">Sugarcane</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -75,7 +231,8 @@ export function CropRoadmap() {
                 <Input
                   id="landArea"
                   type="number"
-                  step="0.1"
+                  step="0.01"
+                  min="0.01"
                   placeholder="e.g., 5.5"
                   value={formData.landArea}
                   onChange={(e) => setFormData({ ...formData, landArea: e.target.value })}
@@ -95,7 +252,7 @@ export function CropRoadmap() {
               </div>
             </div>
 
-            <Button type="submit" disabled={loading} className="w-full">
+            <Button type="submit" disabled={loading || loadingSaved || updatingTask !== null} className="w-full">
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -109,21 +266,14 @@ export function CropRoadmap() {
         </CardContent>
       </Card>
 
-      {error && (
-        <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-800 rounded-lg p-4">
-          <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
-          <p className="text-sm">{error}</p>
-        </div>
+      {loadingSaved && (
+        <p className="text-sm text-gray-600" role="status">
+          Loading your saved roadmap...
+        </p>
       )}
 
       {roadmap && (
         <div className="space-y-4">
-          {roadmap.usedFallbackTemplate && (
-            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-900 rounded-lg p-3 text-sm">
-              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-              <p>We don't have a dedicated template for {roadmap.cropName} yet — showing a generic schedule instead.</p>
-            </div>
-          )}
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-green-900">
@@ -139,7 +289,8 @@ export function CropRoadmap() {
                 {new Date(roadmap.startDate).toLocaleDateString('en-IN', {
                   day: 'numeric',
                   month: 'long',
-                  year: 'numeric'
+                  year: 'numeric',
+                  timeZone: 'UTC'
                 })}
               </p>
             </div>
@@ -151,8 +302,8 @@ export function CropRoadmap() {
 
             {/* Tasks */}
             <div className="space-y-6">
-              {roadmap.tasks.map((task: any, index: number) => (
-                <div key={index} className="relative flex gap-4">
+              {roadmap.tasks.map((task: any) => (
+                <div key={task._id} className="relative flex gap-4">
                   {/* Week marker */}
                   <div className="flex flex-col items-center">
                     <div className="relative z-10 flex items-center justify-center w-16 h-16 bg-white border-2 border-green-600 rounded-full">
@@ -166,25 +317,43 @@ export function CropRoadmap() {
                   {/* Task card */}
                   <Card className="flex-1 hover:shadow-md transition-shadow">
                     <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-2">
+                      <div className="flex flex-wrap items-start justify-between gap-3 mb-2">
                         <h3 className="font-bold text-lg text-gray-900">{task.task}</h3>
-                        {task.status === 'completed' ? (
-                          <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
-                        ) : (
-                          <Circle className="h-5 w-5 text-gray-400 flex-shrink-0" />
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => toggleTask(task)}
+                          disabled={updatingTask !== null || loading || loadingSaved}
+                          aria-pressed={task.status === 'completed'}
+                          aria-label={
+                            task.status === 'completed'
+                              ? `Mark ${task.task} as pending`
+                              : `Mark ${task.task} as completed`
+                          }
+                          className="flex flex-shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-sm disabled:opacity-50"
+                        >
+                          {updatingTask === task._id ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                          ) : task.status === 'completed' ? (
+                            <CheckCircle2 className="h-5 w-5 text-green-600" />
+                          ) : (
+                            <Circle className="h-5 w-5 text-gray-400" />
+                          )}
+                          {updatingTask === task._id
+                            ? 'Saving...'
+                            : task.status === 'completed'
+                              ? 'Completed'
+                              : 'Mark done'}
+                        </button>
                       </div>
                       <p className="text-gray-700 text-sm mb-3">{task.description}</p>
                       <div className="flex items-center gap-2 text-xs text-gray-500">
                         <Calendar className="h-3 w-3" />
                         <span>
-                          {new Date(
-                            new Date(roadmap.startDate).getTime() + 
-                            (task.week - 1) * 7 * 24 * 60 * 60 * 1000
-                          ).toLocaleDateString('en-IN', {
+                          {new Date(task.dueDate).toLocaleDateString('en-IN', {
                             day: 'numeric',
                             month: 'short',
-                            year: 'numeric'
+                            year: 'numeric',
+                            timeZone: 'UTC'
                           })}
                         </span>
                       </div>
@@ -198,8 +367,8 @@ export function CropRoadmap() {
           <Card className="bg-amber-50 border-amber-200">
             <CardContent className="pt-6">
               <p className="text-sm text-amber-900">
-                ⏰ <strong>Reminder:</strong> Set up notifications for upcoming tasks to stay on track. 
-                Weather conditions and pest pressure may require adjusting this schedule.
+                <strong>Planning note:</strong> This schedule uses a crop-specific template.
+                Adjust activities to local conditions and mark tasks complete as you finish them.
               </p>
             </CardContent>
           </Card>

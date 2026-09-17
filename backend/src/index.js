@@ -13,9 +13,6 @@ const userRoutes = require('./routes/userRoutes');
 const postRoutes = require('./routes/postRoutes');
 const weatherRoutes = require('./routes/weatherRoutes');
 const cropRoutes = require('./routes/cropRoutes');
-const roadmapRoutes = require('./routes/roadmapRoutes');
-const diseaseRoutes = require('./routes/diseaseRoutes');
-const marketRoutes = require('./routes/marketRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -36,9 +33,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/social', postRoutes);
 app.use('/api/weather', weatherRoutes);
 app.use('/api/crops', cropRoutes);
-app.use('/api/roadmap', roadmapRoutes);
-app.use('/api/disease', diseaseRoutes);
-app.use('/api/market', marketRoutes);
+app.use('/api/cultivations', require('./routes/cultivationRoutes'));
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date() });
@@ -55,8 +50,9 @@ const startServer = async () => {
     await sequelize.sync({ alter: true });
     console.log('✅ PostgreSQL models synced.');
 
+    app.use('/api/dashboard', require('./routes/dashboardRoutes'));
     app.listen(PORT, () => {
-      console.log(`🚀 AgroLyft Backend running on port ${PORT}`);
+      console.log(`🚀 HarvestHub Backend running on port ${PORT}`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);
