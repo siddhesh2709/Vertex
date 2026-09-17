@@ -138,6 +138,7 @@ export function DiseaseDetection() {
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-gray-500">{t('disease.supports')}</p>
             </div>
 
             <div className="space-y-2">
