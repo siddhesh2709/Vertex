@@ -73,11 +73,13 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/health":
+            m = meta["metrics"]
             self._send(200, {
                 "status": "ok",
                 "classes": len(CLASSES),
-                "testAccuracy": meta["metrics"]["testAccuracy"],
-                "architecture": meta["metrics"]["architecture"],
+                "labTestAccuracy": m.get("labTestAccuracy", m.get("testAccuracy")),
+                "fieldTestAccuracy": m.get("fieldTestAccuracy"),
+                "architecture": m["architecture"],
             })
         else:
             self._send(404, {"error": "not found"})
@@ -100,6 +102,8 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    _m = meta["metrics"]
     print(f"disease model worker listening on 127.0.0.1:{PORT} "
-          f"({len(CLASSES)} classes, test acc {meta['metrics']['testAccuracy']})", flush=True)
+          f"({len(CLASSES)} classes, lab acc {_m.get('labTestAccuracy', _m.get('testAccuracy'))}, "
+          f"field acc {_m.get('fieldTestAccuracy')})", flush=True)
     HTTPServer(("127.0.0.1", PORT), Handler).serve_forever()

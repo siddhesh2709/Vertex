@@ -52,10 +52,12 @@ function displayDate(value: string) {
   });
 }
 
-function dueLabel(days: number) {
-  if (days < 0) return `${Math.abs(days)} day${days === -1 ? '' : 's'} overdue`;
+// Takes t as an argument: this lives outside the component, so the hook's
+// value is not in scope here.
+function dueLabel(days: number, t: (key: string) => string) {
+  if (days < 0) return `${Math.abs(days)} ${t('dash.days')} ${t('dash.overdue')}`;
   if (days === 0) return t('dash.dueToday');
-  return `Due in ${days} day${days === 1 ? '' : 's'}`;
+  return `${t('dash.dueIn')} ${days} ${t('dash.days')}`;
 }
 
 export function Dashboard({ user }: DashboardProps) {
@@ -202,7 +204,7 @@ export function Dashboard({ user }: DashboardProps) {
                     <p className="font-semibold text-gray-900">{task.title}</p>
                     <p className="text-sm text-green-700 mt-1">{task.cropName}</p>
                     <p className="text-sm text-gray-600 mt-1">{task.description}</p>
-                    <p className={`text-xs mt-2 ${task.daysUntilDue < 0 ? 'text-red-700' : 'text-gray-600'}`}>{displayDate(task.dueDate)} · {dueLabel(task.daysUntilDue)}</p>
+                    <p className={`text-xs mt-2 ${task.daysUntilDue < 0 ? 'text-red-700' : 'text-gray-600'}`}>{displayDate(task.dueDate)} · {dueLabel(task.daysUntilDue, t)}</p>
                   </div>
                 ))}
               </CardContent>

@@ -111,10 +111,13 @@ export function DiseaseDetection() {
             <ShieldCheck className="h-5 w-5 text-green-700 flex-shrink-0" />
             <div className="text-xs leading-tight">
               <div className="font-semibold">
-                {(modelInfo.metrics.testAccuracy * 100).toFixed(1)}% {t('disease.testAccuracy')}
+                {(modelInfo.metrics.fieldTestAccuracy != null
+                  ? modelInfo.metrics.fieldTestAccuracy * 100
+                  : modelInfo.metrics.labTestAccuracy * 100
+                ).toFixed(0)}% {t('disease.fieldAccuracy')}
               </div>
               <div className="text-green-700">
-                {modelInfo.metrics.architecture} · {modelInfo.classes.length} classes
+                {(modelInfo.metrics.labTestAccuracy * 100).toFixed(0)}% {t('disease.labAccuracy')} · {modelInfo.classes.length} classes
               </div>
             </div>
           </div>

@@ -18,7 +18,9 @@ const detectDisease = async (req, res) => {
                 supportedCrops: SUPPORTED_CROPS
             });
         }
-        if (!diseaseModel.isAvailable()) {
+        // The worker can be started after the API, so retry rather than latching
+        // on the startup result.
+        if (!diseaseModel.isAvailable() && !(await diseaseModel.load())) {
             return res.status(503).json({ error: 'Disease model is not loaded on the server.' });
         }
 
@@ -96,11 +98,12 @@ const detectDisease = async (req, res) => {
                 })),
             model: {
                 architecture: meta.metrics.architecture,
-                testAccuracy: meta.metrics.testAccuracy,
+                labTestAccuracy: meta.metrics.labTestAccuracy ?? meta.metrics.testAccuracy,
+                fieldTestAccuracy: meta.metrics.fieldTestAccuracy ?? null,
                 classes: meta.classes.length,
                 energy,
                 // The model only ever saw single leaves on plain backgrounds.
-                trainedOn: 'single-leaf images (PlantVillage)'
+                trainedOn: meta.metrics.dataset || 'PlantVillage'
             }
         });
     } catch (error) {
@@ -109,8 +112,8 @@ const detectDisease = async (req, res) => {
     }
 };
 
-const getModelInfo = (req, res) => {
-    if (!diseaseModel.isAvailable()) {
+const getModelInfo = async (req, res) => {
+    if (!diseaseModel.isAvailable() && !(await diseaseModel.load())) {
         return res.status(503).json({ available: false, supportedCrops: SUPPORTED_CROPS });
     }
     const meta = diseaseModel.getMeta();

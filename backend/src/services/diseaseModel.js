@@ -29,7 +29,7 @@ const load = async () => {
     try {
         const { data } = await axios.get(`${WORKER_URL}/health`, { timeout: 5000 });
         ready = data.status === 'ok';
-        console.log(`✅ Disease model worker reachable (${data.classes} classes, test acc ${data.testAccuracy}).`);
+        console.log(`✅ Disease model worker reachable (${data.classes} classes, lab ${data.labTestAccuracy}, field ${data.fieldTestAccuracy}).`);
         return ready;
     } catch (err) {
         loadError = `Inference worker not reachable at ${WORKER_URL}. Start it with: npm run model`;
